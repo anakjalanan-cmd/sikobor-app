@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#ffffff">
+    <title>SIKOBOR - Sistem Kehadiran Kota Bogor</title>
+    <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjmCDN_83Ji85cv_bpY1JhsS-6W32g5aa4QvCa7Vf4qIpXfLkYrYH2wg2aQiWmQicRIZkQ5kRlIhaAJW6tVrvoQAdlkamnv-SRoyt2Q6rHfHkeKUtog4SRVFuGLgi04qQIZYIsMyYbSa4uA9ADW5PN_cgH_tVRmeFcO9aaGWBixnV_uJnepyeJ4yifEyQ2m/s320/%E2%80%94Pngtree%E2%80%94fingerprint%20ai%20security%20biometric%20icon_20555184.png">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- R9eact & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel (untuk JSX) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Lucide Icons (Global Script) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* Reset dasar untuk mobile feel */
+        body { 
+            -webkit-tap-highlight-color: transparent; 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overscroll-behavior-y: none; /* Mencegah pull-to-refresh default di beberapa browser */
+        }
+        
+        /* Hide Scrollbar but allow scroll */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none;  scrollbar-width: none; }
+
+        /* Safe Area Utilities untuk iPhone X ke atas */
+        .safe-pt { padding-top: env(safe-area-inset-top); }
+        .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
+        .safe-mb { margin-bottom: env(safe-area-inset-bottom); }
+    </style>
+</head>
+<body class="bg-gray-100 sm:bg-gray-200">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- CONFIGURATION ---
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyjY1FF4JtRC16dJ5tO2Kip-w8lvTEJCPYm7fnJ1ycLjGh6lmqBJ3hvAsfcPy4XK2fPEg/exec";
+        
+        const DEFAULT_CONFIG = {
+            lat: -6.595038, 
+            lng: 106.797432,
+            radius: 100
+        };
+
+        // --- ICON COMPONENT WRAPPER ---
+        const Icon = ({ name, size = 24, className = "" }) => {
+            const iconRef = useRef(null);
+            
+            useEffect(() => {
+                if (iconRef.current) {
+                    const { createIcons, icons } = lucide;
+                    const iconName = icons[name] ? name : 'CircleHelp';
+                    iconRef.current.innerHTML = `<i data-lucide="${kebabCase(iconName)}"></i>`;
+                    createIcons({
+                        icons: { [name]: icons[name] || icons.CircleHelp },
+                        attrs: {
+                            class: className,
+                            width: size,
+                            height: size,
+                            stroke: "currentColor",
+                            "stroke-width": 2
+                        },
+                        nameAttr: 'data-lucide'
+                    });
+                }
+            }, [name, size, className]);
+
+            const kebabCase = str => str.replace(/[A-Z]/g, m => "-" + m.toLowerCase()).replace(/^-/, "");
+            return <span ref={iconRef} style={{ display: 'inline-flex' }} />;
+        };
+
+        // --- HELPER FUNCTIONS ---
+        const formatKey = (key) => key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+        const parseCoordinate = (val) => {
+            if (val === undefined || val === null || val === '') return 0;
+            const strVal = String(val).replace(',', '.').trim();
+            const parsed = parseFloat(strVal);
+            return isNaN(parsed) ? 0 : parsed;
+        };
+
+        const calculateDistance = (lat1, lon1, lat2, lon2) => {
+            const R = 6371e3; 
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                    Math.cos(φ1) * Math.cos(φ2) *
+                    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        };
+
+        const getDirectPhotoUrl = (url) => {
+            if (!url) return "https://i.pravatar.cc/150?img=12"; 
+            if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+                let idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+                if (!idMatch) idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+                if (idMatch && idMatch[1]) return `https://drive.google.com/uc?export=view&id=${idMatch[1]}`;
+            }
+            return url;
+        };
+
+        // Date Parser for flexible formats
+        const parseDateString = (dateString) => {
+            if (!dateString) return null;
+            const monthMap = {
+                'januari': 0, 'january': 0, 'jan': 0,
+                'februari': 1, 'february': 1, 'feb': 1,
+                'maret': 2, 'march': 2, 'mar': 2,
+                'april': 3, 'apr': 3,
+                'mei': 4, 'may': 4,
+                'juni': 5, 'june': 5, 'jun': 5,
+                'juli': 6, 'july': 6, 'jul': 6,
+                'agustus': 7, 'august': 7, 'aug': 7,
+                'september': 8, 'sep': 8,
+                'oktober': 9, 'october': 9, 'oct': 9,
+                'november': 10, 'nov': 10,
+                'desember': 11, 'december': 11, 'dec': 11
+            };
+            const parts = dateString.toLowerCase().split(' ');
+            if (parts.length >= 3) {
+                const day = parseInt(parts[0]);
+                const monthName = parts[1];
+                const year = parseInt(parts[2]);
+                const monthIndex = monthMap[monthName];
+                if (!isNaN(day) && !isNaN(year) && monthIndex !== undefined) {
+                    return new Date(year, monthIndex, day);
+                }
+            }
+            return new Date(dateString);
+        };
+
+        const getIconNameForKey = (key) => {
+            const k = key.toLowerCase();
+            if (k.includes('tgl') || k.includes('tahun') || k.includes('tmt') || k.includes('periode')) return 'Calendar';
+            if (k.includes('nama') || k.includes('suami') || k.includes('istri') || k.includes('anak')) return 'User';
+            if (k.includes('status')) return 'Award';
+            if (k.includes('tempat') || k.includes('alamat') || k.includes('lokasi')) return 'MapPin';
+            if (k.includes('sekolah') || k.includes('univ') || k.includes('pendidikan') || k.includes('jurusan')) return 'GraduationCap';
+            if (k.includes('jabatan') || k.includes('pangkat') || k.includes('golongan') || k.includes('eselon') || k.includes('kerja') || k.includes('unit') || k.includes('opd') || k.includes('jenis')) return 'Briefcase';
+            if (k.includes('email')) return 'Mail';
+            if (k.includes('hp') || k.includes('telp') || k.includes('wa')) return 'Phone';
+            if (k.includes('npwp') || k.includes('nip')) return 'Hash';
+            if (k.includes('agama')) return 'Star';
+            return 'Info';
+        };
+
+        const getIconColorForKey = (key) => {
+            const k = key.toLowerCase();
+            if (k.includes('tgl') || k.includes('tahun')) return 'text-blue-500';
+            if (k.includes('nama') || k.includes('keluarga')) return 'text-green-500';
+            if (k.includes('tempat') || k.includes('alamat')) return 'text-red-500';
+            if (k.includes('pendidikan')) return 'text-purple-500';
+            if (k.includes('jabatan') || k.includes('pangkat')) return 'text-orange-500';
+            if (k.includes('email')) return 'text-red-400';
+            if (k.includes('hp')) return 'text-green-600';
+            return 'text-gray-400';
+        };
+
+        // --- COMPONENTS ---
+
+        const LoginScreen = ({ onLogin, isLoading, error }) => {
+            const [showPassword, setShowPassword] = useState(false);
+            const [nip, setNip] = useState('');
+            const [password, setPassword] = useState('');
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                if(nip && password) onLogin(nip, password);
+            };
+
+            return (
+                <div className="flex flex-col h-screen bg-blue-900 items-center justify-center p-6 safe-pb">
+                    <div className="w-full max-w-xs text-center mb-8">
+                        <div className="w-28 h-28 mx-auto mb-4 flex items-center justify-center bg-white/10 rounded-3xl backdrop-blur-sm border border-white/20 p-2 shadow-xl">
+                             <img 
+                               src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEghe3V67bAa_u6Zzm8pHGG8zdmWSwoPYDJaXr9BgHimqfhyphenhyphen9M7EgOZNwBgkUoDYexm-ql3RAKi21ay7xaiWUq1SvHEPc_MSa_9g0QgD5G3tL8sgXbAUC0aUV5sCFVi6y-FXcBtOsrXjJS4mCEBLnMdevbHpGnfljIdpPVy46zL6-mNubvSemO22X1xlVsjV/s320/Logo%20atau%20Lambang%20Kota%20Bogor%20Transparan%20PNG.png" 
+                               alt="Logo Kota Bogor" 
+                               className="w-full h-full object-contain drop-shadow-md" 
+                               onError={(e) => e.target.style.display = 'none'} 
+                             />
+                        </div>
+                        <h1 className="text-3xl font-bold text-white tracking-wider mb-1">SIKOBOR</h1>
+                        <p className="text-blue-200 text-xs font-medium tracking-wide">Sistem Kehadiran Kota Bogor</p>
+                    </div>
+
+                    <div className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl border border-gray-100">
+                        <h2 className="text-center text-gray-700 text-xl font-bold mb-6 tracking-tight">LOGIN PEGAWAI</h2>
+                        {error && (
+                            <div className="bg-red-50 border border-red-100 text-red-600 text-xs p-3 rounded-xl mb-4 text-center font-semibold flex items-center justify-center gap-2">
+                                <Icon name="AlertTriangle" size={16} /> {error}
+                            </div>
+                        )}
+                        <form onSubmit={handleLogin} className="space-y-5">
+                            <div>
+                                <label className="block text-gray-600 text-xs font-bold mb-2 ml-1">Nomor Induk Pegawai (NIP)</label>
+                                <div className="relative group">
+                                    <div className="absolute left-3 top-3 text-gray-400">
+                                        <Icon name="User" size={20} />
+                                    </div>
+                                    <input type="number" inputMode="numeric" value={nip} onChange={(e) => setNip(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pl-10 text-gray-800 text-base focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-medium" placeholder="Masukkan NIP Anda" disabled={isLoading} />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-gray-600 text-xs font-bold mb-2 ml-1">Password</label>
+                                <div className="relative group">
+                                    <div className="absolute left-3 top-3 text-gray-400">
+                                        <Icon name="FileText" size={20} />
+                                    </div>
+                                    <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pl-10 text-gray-800 text-base focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-medium" placeholder="Masukkan Kata Sandi" disabled={isLoading} />
+                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition-colors">
+                                        <Icon name={showPassword ? "EyeOff" : "Eye"} size={20} />
+                                    </button>
+                                </div>
+                            </div>
+                            <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-green-200 transform active:scale-95 transition-all mt-2 flex justify-center items-center gap-2">
+                                {isLoading ? <Icon name="Loader" className="animate-spin" size={20} /> : 'LOGIN'}
+                            </button>
+                        </form>
+                    </div>
+                    <div className="mt-auto text-white/40 text-xs py-6 font-medium">
+                        &copy; 2025 Pemerintah Daerah Kota Bogor
+                    </div>
+                </div>
+            );
+        };
+
+        const Dashboard = ({ user, navigate, onLogout, todayAttendance }) => {
+            return (
+                <div className="flex flex-col min-h-screen bg-gray-50 pb-36 relative">
+                    <div className="bg-white p-4 shadow-sm flex justify-between items-center sticky top-0 z-30 safe-pt">
+                        <div className="flex items-center gap-2"><div className="w-8 h-8 flex items-center justify-center">
+                                <img 
+                                    src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEghe3V67bAa_u6Zzm8pHGG8zdmWSwoPYDJaXr9BgHimqfhyphenhyphen9M7EgOZNwBgkUoDYexm-ql3RAKi21ay7xaiWUq1SvHEPc_MSa_9g0QgD5G3tL8sgXbAUC0aUV5sCFVi6y-FXcBtOsrXjJS4mCEBLnMdevbHpGnfljIdpPVy46zL6-mNubvSemO22X1xlVsjV/s320/Logo%20atau%20Lambang%20Kota%20Bogor%20Transparan%20PNG.png" 
+                                    alt="Logo" 
+                                    className="w-full h-full object-contain" 
+                                    onError={(e) => e.target.style.display = 'none'}
+                                />
+                            </div>
+                            <span className="font-bold text-gray-800">Sikobor Kota Bogor</span>
+                        </div>
+                        <button className="text-gray-600"><Icon name="Grid" size={24} /></button>
+                    </div>
+
+                    <div className="p-4 space-y-4">
+                        <div className="flex justify-center -mb-12 z-10 relative pointer-events-none">
+                            <div className="p-1 bg-white rounded-xl shadow-lg pointer-events-auto">
+                                <img src={getDirectPhotoUrl(user.photoUrl)} alt="Profile" className="w-24 h-28 object-cover rounded-lg bg-gray-200" referrerPolicy="no-referrer" onError={(e) => { e.target.onerror = null; e.target.src = "https://i.pravatar.cc/150?img=12"; }} />
+                            </div>
+                        </div>
+
+                        <div className="bg-blue-800 text-white rounded-xl p-4 pt-14 shadow-lg mt-4 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-2 z-20">
+                                <button onClick={onLogout} className="bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-1 px-3 rounded shadow flex items-center gap-1 cursor-pointer">
+                                    <Icon name="LogOut" size={12} /> Log Out
+                                </button>
+                            </div>
+                            <div className="mt-2">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <Icon name="User" size={20} className="text-amber-400" />
+                                    <h2 className="font-bold text-lg text-amber-400">{user.name || "Nama Pegawai"}</h2>
+                                </div>
+                                <div className="flex items-center gap-2 text-blue-200 text-sm mb-3 ml-1">
+                                    <Icon name="FileText" size={14} />
+                                    <span>NIP : {user.nip}</span>
+                                </div>
+                                <div className="bg-blue-900/50 rounded-lg p-3 text-xs text-blue-100 border border-blue-700/50">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Icon name="Briefcase" size={14} className="text-blue-300" />
+                                        <p className="font-semibold text-blue-300">Unit Kerja :</p>
+                                    </div>
+                                    <p className="pl-6">{user.unit || "-"}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Today Card */}
+                        <div className="bg-white rounded-2xl shadow-md p-5 border border-gray-100">
+                            <div className="flex items-center gap-2 mb-3 text-gray-800 border-b border-gray-100 pb-2">
+                                <div className="bg-blue-100 p-1.5 rounded-lg text-blue-600"><Icon name="Clock" size={18} /></div>
+                                <h3 className="font-bold text-sm">Presensi Hari Ini</h3>
+                            </div>
+                            <div className="flex justify-between items-center gap-4">
+                                <div className="flex-1 flex flex-col items-center justify-center p-2 rounded-xl bg-green-50 border border-green-100">
+                                    <p className="text-xs text-gray-500 font-bold mb-1">DATANG</p>
+                                    <p className={`text-xl font-bold ${todayAttendance?.in === '-' ? 'text-gray-400' : 'text-green-600'}`}>{todayAttendance?.in || '-'}</p>
+                                </div>
+                                <div className="flex-1 flex flex-col items-center justify-center p-2 rounded-xl bg-red-50 border border-red-100">
+                                    <p className="text-xs text-gray-500 font-bold mb-1">PULANG</p>
+                                    <p className={`text-xl font-bold ${todayAttendance?.out === '-' ? 'text-gray-400' : 'text-red-600'}`}>{todayAttendance?.out || '-'}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <MenuCard icon="History" color="bg-red-500" label="Rekapitulasi Kehadiran" onClick={() => navigate('recap')} />
+                            <MenuCard icon="BarChart2" color="bg-amber-400" label="Penyesuaian Kehadiran" onClick={() => navigate('adjustment')} />
+                            <MenuCard icon="User" color="bg-yellow-700" label="Profil Saya" onClick={() => navigate('profile')} />
+                            <MenuCard icon="Target" color="bg-purple-500" label="E-Kinerja" onClick={() => navigate('ekinerja')} />
+                        </div>
+                    </div>
+
+                    {/* Floating Buttons with Safe Area support */}
+                    <div className="fixed bottom-0 left-0 right-0 w-full bg-white/90 backdrop-blur-md border-t border-gray-200 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-40 safe-pb">
+                        <div className="max-w-md mx-auto p-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <button onClick={() => navigate('attendance-in')} className="bg-green-600 hover:bg-green-700 text-white p-3 rounded-xl shadow-lg shadow-green-200 flex items-center justify-center gap-2 active:scale-95 transition-all">
+                                    <div className="p-1.5 bg-white/20 rounded-full flex items-center justify-center"><Icon name="ChevronLeft" className="rotate-180" size={20}/></div>
+                                    <span className="font-bold text-base">Datang</span>
+                                </button>
+                                <button onClick={() => navigate('attendance-out')} className="bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl shadow-lg shadow-red-200 flex items-center justify-center gap-2 active:scale-95 transition-all">
+                                    <div className="p-1.5 bg-white/20 rounded-full flex items-center justify-center"><Icon name="ChevronLeft" size={20}/></div>
+                                    <span className="font-bold text-base">Pulang</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const MenuCard = ({ icon, color, label, onClick }) => (
+            <button onClick={onClick} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center gap-3 hover:shadow-md transition-all active:scale-95 w-full h-full">
+                <div className={`${color} w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-md`}>
+                    <Icon name={icon} size={28} />
+                </div>
+                <span className="text-xs text-center font-medium text-gray-600 leading-tight mt-2">{label}</span>
+            </button>
+        );
+
+        const AttendanceScreen = ({ type, navigate, user, onSubmit, officeConfig }) => {
+            const [isSubmitting, setIsSubmitting] = useState(false);
+            const [message, setMessage] = useState(null);
+            const [location, setLocation] = useState(null);
+            const [distance, setDistance] = useState(null);
+            const [errorMsg, setErrorMsg] = useState(null);
+            const [isLocating, setIsLocating] = useState(true);
+            const [cameraActive, setCameraActive] = useState(false);
+            const videoRef = useRef(null);
+            const canvasRef = useRef(null);
+
+            const isCheckIn = type === 'in';
+            const colorClass = isCheckIn ? 'bg-green-500' : 'bg-red-500';
+            const title = isCheckIn ? "Absen Masuk" : "Absen Keluar";
+
+            const getLocation = () => {
+                setIsLocating(true);
+                setErrorMsg(null);
+
+                if (!navigator.geolocation) {
+                    setErrorMsg("Browser tidak menyokong Geolocation.");
+                    setIsLocating(false);
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => successLocation(position),
+                    (err) => {
+                        navigator.geolocation.getCurrentPosition(
+                            (position) => successLocation(position),
+                            (errLow) => handleGeoError(errLow),
+                            { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }
+                        );
+                    },
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                );
+            };
+
+            const successLocation = (position) => {
+                const { latitude, longitude } = position.coords;
+                setLocation({ lat: latitude, lng: longitude });
+                
+                if (officeConfig && officeConfig.lat && officeConfig.lng) {
+                    const dist = calculateDistance(officeConfig.lat, officeConfig.lng, latitude, longitude);
+                    setDistance(Math.round(dist));
+                } else {
+                    setDistance(null); 
+                }
+                setIsLocating(false);
+            };
+
+            const handleGeoError = (err) => {
+                setIsLocating(false);
+                setErrorMsg("Gagal mendapatkan lokasi. Pastikan GPS aktif.");
+            };
+
+            useEffect(() => { getLocation(); }, [officeConfig]);
+
+            const startCamera = async () => {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+                    if (videoRef.current) { videoRef.current.srcObject = stream; setCameraActive(true); }
+                } catch (err) { setErrorMsg("Gagal akses kamera. Berikan izin kamera."); }
+            };
+
+            const stopCamera = () => {
+                if (videoRef.current && videoRef.current.srcObject) {
+                    videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+                }
+            };
+
+            useEffect(() => { startCamera(); return () => stopCamera(); }, []);
+
+            const handleTakeSelfieAndSubmit = async () => {
+                if (!location || distance === null || distance > officeConfig.radius) { 
+                    setErrorMsg("Anda berada di luar jangkauan kantor."); return; 
+                }
+                setIsSubmitting(true);
+                const video = videoRef.current;
+                const canvas = canvasRef.current;
+                if(video && canvas) {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    canvas.getContext('2d').drawImage(video, 0, 0);
+                    const imageBase64 = canvas.toDataURL('image/jpeg', 0.7); 
+                    try {
+                        const result = await onSubmit(type, location.lat, location.lng, imageBase64);
+                        if(result.success) {
+                            setMessage({ type: 'success', text: 'Absensi Berhasil!' });
+                            setTimeout(() => { stopCamera(); navigate('dashboard'); }, 2000);
+                        } else setMessage({ type: 'error', text: 'Gagal: ' + result.message });
+                    } catch(e) { setMessage({ type: 'error', text: 'Terjadi kesalahan koneksi' }); }
+                }
+                setIsSubmitting(false);
+            };
+
+            const isInsideRadius = distance !== null && distance <= officeConfig.radius;
+
+            return (
+                <div className="flex flex-col h-screen bg-gray-50">
+                    <div className="bg-white p-4 shadow-sm flex items-center gap-3 z-10 safe-pt">
+                        <button onClick={() => { stopCamera(); navigate('dashboard'); }} className="text-gray-600"><Icon name="ChevronLeft" size={24} /></button>
+                        <div className={`w-8 h-8 ${colorClass} rounded-lg flex items-center justify-center text-white`}><Icon name="MapPin" size={18} /></div>
+                        <h1 className="font-bold text-lg text-gray-800">{title}</h1>
+                    </div>
+                    <div className={`${colorClass} text-white p-6 pb-16 relative overflow-hidden transition-all duration-500`}>
+                        <div className="relative z-10">
+                            <div className="flex items-start gap-4 mb-4">
+                                <Icon name="MapPin" size={40} className="animate-bounce" />
+                                <div>
+                                    <h2 className="text-2xl font-bold">
+                                        {isLocating ? 'Mencari...' : (distance !== null ? `${distance} Meter` : 'Menunggu Data...')}
+                                    </h2>
+                                    <p className="text-white/80 text-xs">Jarak ke Kantor</p>
+                                    <p className="text-[10px] opacity-60 mt-1 font-mono">
+                                         Target: {officeConfig.lat}, {officeConfig.lng}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            {errorMsg ? (
+                                <div className="bg-white/20 p-3 rounded-xl text-xs font-bold mb-2 text-yellow-100 border border-yellow-200/50 flex flex-col gap-2">
+                                    <div className="flex items-center gap-2"><Icon name="AlertTriangle" size={16} /> {errorMsg}</div>
+                                    <button 
+                                        onClick={getLocation} 
+                                        className="bg-white/20 hover:bg-white/30 py-1.5 rounded text-white flex items-center justify-center gap-1 transition-colors"
+                                    >
+                                        <Icon name="RefreshCw" size={12} /> Cuba Cari Lokasi Lagi
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex justify-between items-end border-t border-white/20 pt-2 mt-2">
+                                    <div><p className="font-bold">{isInsideRadius ? "DALAM JANGKAUAN" : "LUAR JANGKAUAN"}</p><p className="text-xs opacity-80 max-w-[150px]">Max Radius: {officeConfig.radius}m</p></div>
+                                    <div className="text-right"><p className="text-xs opacity-90">Lokasi Anda</p><p className="font-bold text-xs truncate w-24">{location ? `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}` : '-'}</p></div>
+                                </div>
+                            )}
+                        </div>
+                        <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                    </div>
+                    <div className="flex-1 px-4 -mt-10 relative z-20 flex flex-col items-center">
+                        <div className="bg-white rounded-2xl shadow-2xl p-2 mb-6 w-full max-w-xs overflow-hidden relative border-4 border-white">
+                            <video ref={videoRef} autoPlay playsInline className="w-full h-64 object-cover rounded-xl bg-black transform scale-x-[-1]"></video>
+                            <canvas ref={canvasRef} className="hidden"></canvas>
+                            {!cameraActive && <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white text-xs">Memuat Kamera...</div>}
+                        </div>
+                        <div className="w-full max-w-xs text-center">
+                            {message ? <div className={`p-4 rounded-lg font-bold ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{message.text}</div> : 
+                            <><button onClick={handleTakeSelfieAndSubmit} disabled={isSubmitting || !isInsideRadius || !cameraActive} className={`w-20 h-20 rounded-full flex items-center justify-center shadow-xl border-4 border-white transition-all relative overflow-hidden group mx-auto ${!isInsideRadius ? 'bg-gray-400 cursor-not-allowed opacity-50' : 'bg-red-600 active:scale-95 hover:bg-red-500'}`}>{isSubmitting ? <Icon name="Loader" className="animate-spin text-white" size={32}/> : <Icon name="Camera" size={32} className="text-white" />}</button><p className="text-gray-500 text-sm mt-4 font-medium">{!isInsideRadius ? "Mendekat ke kantor untuk absen" : "Ketuk kamera untuk Absen & Selfie"}</p></>}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const RecapScreen = ({ navigate, userNip }) => {
+            const [activeTab, setActiveTab] = useState('in');
+            const [history, setHistory] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [fetchError, setFetchError] = useState(null);
+
+            useEffect(() => {
+                const fetchHistory = async () => {
+                    setLoading(true); setFetchError(null);
+                    try {
+                        const response = await fetch(`${SCRIPT_URL}?action=getHistory&nip=${encodeURIComponent(userNip)}&t=${new Date().getTime()}`, { 
+                            method: "GET", credentials: "omit", redirect: "follow", headers: { "Content-Type": "text/plain" } 
+                        });
+                        if (!response.ok) throw new Error("Network error");
+                        const data = await response.json();
+                        if(Array.isArray(data)) setHistory(data); else setHistory([]);
+                    } catch (e) { setFetchError("Gagal memuat data."); } finally { setLoading(false); }
+                };
+                fetchHistory();
+            }, [userNip]);
+
+            const filteredHistory = history.filter(item => activeTab === 'in' ? item.type === 'in' : item.type === 'out');
+
+            const formatRecapDate = (dateString) => {
+                const dateObj = parseDateString(dateString);
+                if (!dateObj || isNaN(dateObj.getTime())) return dateString || '-';
+                
+                const day = String(dateObj.getDate()).padStart(2, '0');
+                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const year = dateObj.getFullYear();
+                return `${day}/${month}/${year}`;
+            };
+
+            return (
+                <div className="flex flex-col h-screen bg-gray-50">
+                    <div className="bg-white p-4 shadow-sm flex items-center gap-3 sticky top-0 z-10 safe-pt">
+                        <button onClick={() => navigate('dashboard')} className="text-gray-600"><Icon name="ChevronLeft" size={24} /></button>
+                        <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center text-white"><Icon name="History" size={18} /></div>
+                        <h1 className="font-bold text-lg text-gray-800">Rekapitulasi Absen</h1>
+                    </div>
+                    <div className="p-4 flex gap-0">
+                        <button onClick={() => setActiveTab('in')} className={`flex-1 py-3 rounded-l-lg font-bold text-sm transition-colors ${activeTab === 'in' ? 'bg-green-500 text-white shadow-md' : 'bg-white text-gray-500 border border-r-0'}`}>Absen Masuk</button>
+                        <button onClick={() => setActiveTab('out')} className={`flex-1 py-3 rounded-r-lg font-bold text-sm transition-colors ${activeTab === 'out' ? 'bg-red-500 text-white shadow-md' : 'bg-white text-gray-500 border border-l-0'}`}>Absen Keluar</button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-3 safe-pb">
+                        {loading ? <div className="text-center py-10 text-gray-500 flex flex-col items-center"><Icon name="Loader" className="animate-spin mb-2" /><p>Memuat data...</p></div> : 
+                        fetchError ? <div className="text-center py-10 text-red-500 flex flex-col items-center"><Icon name="AlertTriangle" className="mb-2" /><p>{fetchError}</p></div> : 
+                        filteredHistory.length === 0 ? <div className="text-center py-10 text-gray-400">Belum ada data absensi</div> :
+                        filteredHistory.map((item, idx) => (
+                            <div key={idx} className="bg-white rounded-lg shadow-sm p-4 flex flex-col items-center text-center relative overflow-hidden">
+                                <div className={`absolute left-0 top-0 bottom-0 w-2 ${item.type === 'in' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                <h3 className="text-sm font-bold text-gray-800 mb-1">{formatRecapDate(item.date)}</h3>
+                                <p className={`text-lg font-bold mb-1 ${item.type === 'in' ? 'text-green-600' : 'text-red-600'}`}>{item.time}</p>
+                                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                                    {item.type === 'in' ? 'HADIR' : 'PULANG'}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const ProfileScreen = ({ user, navigate, openDetail }) => {
+            const menuItems = [
+                { icon: "User", label: 'Biodata', color: 'bg-teal-600', type: 'Profile_Biodata' },
+                { icon: "GraduationCap", label: 'Pendidikan', color: 'bg-red-500', type: 'Profile_Pendidikan' },
+                { icon: "Briefcase", label: 'Jabatan', color: 'bg-blue-700', type: 'Profile_Jabatan' },
+                { icon: "Grid", label: 'Pangkat', color: 'bg-green-500', type: 'Profile_Pangkat' },
+                { icon: "Home", label: 'Diklat', color: 'bg-blue-900', type: 'Profile_Diklat' },
+                { icon: "FileText", label: 'KGB', color: 'bg-green-400', type: 'Profile_KGB' },
+                { icon: "Target", label: 'SKP', color: 'bg-red-600', type: 'Profile_SKP' },
+                { icon: "Users", label: 'Keluarga', color: 'bg-yellow-500', type: 'Profile_Keluarga' },
+            ];
+            return (
+                <div className="flex flex-col min-h-screen bg-gray-50">
+                    <div className="bg-white p-4 shadow-sm flex items-center gap-3 sticky top-0 z-10 safe-pt"><button onClick={() => navigate('dashboard')} className="text-gray-600"><Icon name="ChevronLeft" size={24} /></button><h1 className="font-bold text-lg text-gray-800">Profil Saya</h1></div>
+                    <div className="bg-teal-700 pt-8 pb-24 px-4 text-center relative z-0">
+                        <div className="w-24 h-24 mx-auto bg-white p-1 rounded-xl mb-3 shadow-lg"><img src={getDirectPhotoUrl(user.photoUrl)} alt="User" className="w-full h-full object-cover rounded-lg bg-gray-200" referrerPolicy="no-referrer" onError={(e) => { e.target.onerror = null; e.target.src = "https://i.pravatar.cc/150?img=12"; }} /></div>
+                        <h2 className="text-white font-bold text-lg">{user.name || "User"}</h2>
+                        <p className="text-teal-200 text-sm">NIP: {user.nip}</p>
+                    </div>
+                    <div className="-mt-16 px-4 pb-24 relative z-10">
+                        <div className="bg-white rounded-3xl shadow-xl p-6 grid grid-cols-3 gap-6 mb-6">
+                            {menuItems.map((item, idx) => (
+                                <div key={idx} onClick={() => openDetail(item.type, item.label)} className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity active:scale-95">
+                                    <div className={`${item.color} w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-sm`}><Icon name={item.icon} size={24} /></div>
+                                    <span className="text-xs text-gray-600 font-medium">{item.label}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="fixed bottom-8 left-0 right-0 flex justify-center z-30 pointer-events-none safe-pb"><button onClick={() => navigate('dashboard')} className="bg-blue-900 text-white p-4 rounded-full shadow-2xl pointer-events-auto hover:bg-blue-800 transition-transform border-4 border-white active:scale-95 flex items-center justify-center gap-2" title="Kembali ke Dashboard"><Icon name="Home" size={24} /></button></div>
+                </div>
+            );
+        };
+
+        const BiodataItem = ({ label, value, iconKey }) => (
+            <div className="mb-4 border-b border-gray-50 pb-2 last:mb-0 last:border-0">
+                <div className="flex items-center gap-2 mb-1">
+                    <Icon name={getIconNameForKey(iconKey || label)} size={16} className={getIconColorForKey(iconKey || label)} />
+                    <span className="text-xs text-gray-500 font-bold uppercase tracking-wide">{label}</span>
+                </div>
+                <div className="pl-6 text-sm font-medium text-gray-800">{String(value || '-')}</div>
+            </div>
+        );
+
+        const ProfileDetailScreen = ({ user, type, title, navigate }) => {
+            const [data, setData] = useState([]);
+            const [latestEducation, setLatestEducation] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+
+            useEffect(() => {
+                const fetchData = async () => {
+                    setLoading(true); setError(null);
+                    try {
+                        const response = await fetch(`${SCRIPT_URL}?action=getProfile&type=${type}&nip=${encodeURIComponent(user.nip)}&t=${new Date().getTime()}`, { 
+                            method: "GET", credentials: "omit", redirect: "follow", headers: { "Content-Type": "text/plain" } 
+                        });
+                        if (!response.ok) throw new Error("Network error");
+                        const result = await response.json();
+                        if (result.error) setError(result.error); 
+                        else {
+                            setData(result);
+                            if (type === 'Profile_Biodata') {
+                                const eduResponse = await fetch(`${SCRIPT_URL}?action=getProfile&type=Profile_Pendidikan&nip=${encodeURIComponent(user.nip)}&t=${new Date().getTime()}`, { method: "GET", credentials: "omit", redirect: "follow", headers: { "Content-Type": "text/plain" } });
+                                const eduResult = await eduResponse.json();
+                                if (Array.isArray(eduResult) && eduResult.length > 0) {
+                                    const sortedEdu = eduResult.sort((a, b) => (parseInt(a.tahun_lulus) || 0) - (parseInt(b.tahun_lulus) || 0)).reverse();
+                                    setLatestEducation(sortedEdu[0]);
+                                }
+                            }
+                        }
+                    } catch (e) { setError("Gagal mengambil data."); } finally { setLoading(false); }
+                };
+                fetchData();
+            }, [type, user.nip]);
+
+            const renderContent = () => {
+                if (loading) return <div className="text-center py-20 text-gray-500"><Icon name="Loader" className="animate-spin mb-2 mx-auto" /><p>Memuat...</p></div>;
+                if (error) return <div className="bg-red-100 text-red-600 p-4 rounded-lg text-center text-sm">{error}</div>;
+                if (data.length === 0) return <div className="text-center text-gray-400 py-20">Data belum tersedia</div>;
+
+                if (type === 'Profile_Biodata') {
+                    const bio = data[0] || {};
+                    const getValue = (keys) => { for (let k of keys) if (bio[k]) return bio[k]; return '-'; };
+                    const eduString = latestEducation ? `${latestEducation.tingkat || ''} ${latestEducation.jurusan || ''} (${latestEducation.nama_sekolah || ''})` : (bio.pendidikan_terakhir || '-');
+
+                    return (
+                        <div className="space-y-6">
+                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                                <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2"><div className="bg-blue-100 p-1.5 rounded text-blue-600"><Icon name="Briefcase" size={18}/></div><h3 className="font-bold text-gray-800">Data Kepegawaian</h3></div>
+                                <div className="space-y-1">
+                                    <BiodataItem label="Nomor Induk Pegawai (NIP)" value={getValue(['nip', 'nomor_induk_pegawai'])} iconKey="nip" />
+                                    <BiodataItem label="Status Pegawai" value={getValue(['status_pegawai', 'status'])} iconKey="status" />
+                                    <BiodataItem label="Golongan" value={getValue(['golongan', 'gol'])} iconKey="golongan" />
+                                    <BiodataItem label="TMT Golongan" value={getValue(['tmt_golongan', 'tmt_gol'])} iconKey="tmt" />
+                                    <BiodataItem label="Jabatan" value={getValue(['jabatan', 'nama_jabatan'])} iconKey="jabatan" />
+                                    <BiodataItem label="Kelas Jabatan" value={getValue(['kelas_jabatan'])} iconKey="jabatan" />
+                                    <BiodataItem label="Eselon" value={getValue(['eselon'])} iconKey="jabatan" />
+                                    <BiodataItem label="Jenis Kepegawaian" value={getValue(['jenis_kepegawaian', 'jenis_pegawai'])} iconKey="jenis" />
+                                    <BiodataItem label="OPD" value={getValue(['opd', 'unit_kerja', 'unit'])} iconKey="opd" />
+                                </div>
+                            </div>
+                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                                <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2"><div className="bg-green-100 p-1.5 rounded text-green-600"><Icon name="User" size={18}/></div><h3 className="font-bold text-gray-800">Data Pribadi</h3></div>
+                                <div className="space-y-1">
+                                    <BiodataItem label="NPWP" value={getValue(['npwp'])} iconKey="npwp" />
+                                    <BiodataItem label="Tempat Lahir" value={getValue(['tempat_lahir'])} iconKey="tempat" />
+                                    <BiodataItem label="Tanggal Lahir" value={getValue(['tanggal_lahir', 'tgl_lahir'])} iconKey="tgl" />
+                                    <BiodataItem label="Pendidikan Terakhir" value={eduString} iconKey="pendidikan" />
+                                    <BiodataItem label="Agama" value={getValue(['agama'])} iconKey="agama" />
+                                    <BiodataItem label="Alamat" value={getValue(['alamat'])} iconKey="alamat" />
+                                    <BiodataItem label="No Handphone" value={getValue(['no_hp', 'no_handphone', 'hp'])} iconKey="hp" />
+                                    <BiodataItem label="Email" value={getValue(['email'])} iconKey="email" />
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+
+                return data.map((item, idx) => (
+                    <div key={idx} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-4">
+                        <div className="grid gap-3">
+                            {Object.keys(item).map((key) => key !== 'nip' && (
+                                <div key={key} className="border-b border-gray-50 last:border-0 pb-3 last:pb-0">
+                                    <div className="flex items-center gap-2 mb-1"><Icon name={getIconNameForKey(key)} size={16} className={getIconColorForKey(key)}/><p className="text-xs text-gray-400 uppercase font-bold tracking-wide">{formatKey(key)}</p></div>
+                                    <p className="text-gray-800 font-medium text-sm pl-6">{String(item[key] || '-')}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ));
+            };
+
+            return (
+                <div className="flex flex-col h-screen bg-gray-50">
+                    <div className="bg-white p-4 shadow-sm flex items-center gap-3 sticky top-0 z-10 safe-pt"><button onClick={() => navigate('profile')} className="text-gray-600"><Icon name="ChevronLeft" size={24} /></button><h1 className="font-bold text-lg text-gray-800">{title}</h1></div>
+                    <div className="flex-1 overflow-y-auto p-4 pb-20 safe-pb">{renderContent()}</div>
+                </div>
+            );
+        };
+
+        const AdjustmentScreen = ({ navigate }) => {
+            const [submitted, setSubmitted] = useState(false);
+            return (
+                <div className="flex flex-col h-screen bg-gray-50">
+                    <div className="bg-white p-4 shadow-sm flex items-center gap-3 safe-pt"><button onClick={() => navigate('dashboard')} className="text-gray-600"><Icon name="ChevronLeft" size={24} /></button><h1 className="font-bold text-lg text-gray-800">Penyesuaian Absen</h1></div>
+                    <div className="p-6">
+                        <form onSubmit={(e) => { e.preventDefault(); setSubmitted(true); setTimeout(() => { setSubmitted(false); alert("Terkirim!"); navigate('dashboard'); }, 1500); }} className="space-y-4 bg-white p-6 rounded-xl shadow-sm">
+                            <div><label className="block text-gray-600 text-sm font-bold mb-2">Tanggal</label><div className="relative"><Icon name="Calendar" className="absolute left-3 top-3 text-gray-400" size={18}/><input type="date" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2.5 pl-10 pr-4 outline-none" required/></div></div>
+                            <div><label className="block text-gray-600 text-sm font-bold mb-2">Jenis Absen</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 outline-none"><option>Absen Masuk</option><option>Absen Keluar</option></select></div>
+                            <div><label className="block text-gray-600 text-sm font-bold mb-2">Alasan</label><textarea className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 outline-none h-24" required></textarea></div>
+                            <button type="submit" className="w-full bg-amber-400 hover:bg-amber-500 text-white font-bold py-3 rounded-lg shadow-md flex items-center justify-center gap-2">{submitted ? <Icon name="Loader" className="animate-spin" size={20}/> : <><Icon name="Send" size={18}/> Kirim</>}</button>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        const EKinerjaScreen = ({ navigate }) => (
+            <div className="flex flex-col h-screen bg-gray-50">
+                <div className="bg-white p-4 shadow-sm flex items-center gap-3 safe-pt"><button onClick={() => navigate('dashboard')} className="text-gray-600"><Icon name="ChevronLeft" size={24} /></button><h1 className="font-bold text-lg text-gray-800">E-Kinerja</h1></div>
+                <div className="flex flex-col items-center justify-center flex-1 p-6 text-center safe-pb">
+                    <div className="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center text-purple-500 mb-4"><Icon name="Target" size={48} /></div>
+                    <h2 className="text-xl font-bold text-gray-800 mb-2">Sistem Kinerja Pegawai</h2>
+                    <button className="px-6 py-2 bg-purple-600 text-white rounded-full font-bold shadow-lg">Buka di Browser</button>
+                </div>
+            </div>
+        );
+
+        // --- MAIN APP CONTAINER ---
+        const App = () => {
+            const [currentView, setCurrentView] = useState('login');
+            const [user, setUser] = useState(null);
+            const [isLoading, setIsLoading] = useState(false);
+            const [error, setError] = useState(null);
+            const [detailParams, setDetailParams] = useState({ type: '', title: '' });
+            const [officeConfig, setOfficeConfig] = useState(DEFAULT_CONFIG);
+            const [todayAttendance, setTodayAttendance] = useState({ in: '-', out: '-' });
+
+            useEffect(() => {
+                const storedUser = localStorage.getItem('sikobor_user');
+                if (storedUser) {
+                    try {
+                        const parsedUser = JSON.parse(storedUser);
+                        setUser(parsedUser);
+                        const storedConfig = localStorage.getItem('sikobor_config');
+                        if (storedConfig) setOfficeConfig(JSON.parse(storedConfig));
+                        else setOfficeConfig(getOfficeConfigFromUser(parsedUser));
+                        fetchTodayStatus(parsedUser.nip);
+                        setCurrentView('dashboard');
+                    } catch (e) {
+                        localStorage.removeItem('sikobor_user');
+                    }
+                }
+            }, []);
+
+            const fetchTodayStatus = async (nip) => {
+                try {
+                    const response = await fetch(`${SCRIPT_URL}?action=getHistory&nip=${encodeURIComponent(nip)}&t=${new Date().getTime()}`, { method: "GET", credentials: "omit", redirect: "follow", headers: { "Content-Type": "text/plain" } });
+                    const data = await response.json();
+                    if (Array.isArray(data)) {
+                        const today = new Date();
+                        const todayEntries = data.filter(item => {
+                            const itemDate = parseDateString(item.date);
+                            if (!itemDate) return false;
+                            return itemDate.getDate() === today.getDate() && itemDate.getMonth() === today.getMonth() && itemDate.getFullYear() === today.getFullYear();
+                        });
+                        let newStatus = { in: '-', out: '-' };
+                        const inEntry = todayEntries.find(item => item.type === 'in'); if(inEntry) newStatus.in = inEntry.time;
+                        const outEntry = todayEntries.find(item => item.type === 'out'); if(outEntry) newStatus.out = outEntry.time;
+                        setTodayAttendance(newStatus);
+                    }
+                } catch (e) { console.error(e); }
+            };
+
+            const apiCall = async (payload) => {
+                const response = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload), headers: { "Content-Type": "text/plain" } });
+                return await response.json();
+            };
+
+            const getOfficeConfigFromUser = (userData, globalConfig) => {
+                let lat = DEFAULT_CONFIG.lat;
+                let lng = DEFAULT_CONFIG.lng;
+                let radius = DEFAULT_CONFIG.radius;
+
+                if (userData && userData.office_lat && userData.office_lng) {
+                    lat = parseCoordinate(userData.office_lat);
+                    lng = parseCoordinate(userData.office_lng);
+                    if (userData.max_radius) radius = parseInt(userData.max_radius);
+                } else if (globalConfig && globalConfig.office_lat) {
+                    lat = parseCoordinate(globalConfig.office_lat);
+                    lng = parseCoordinate(globalConfig.office_lng);
+                    if (globalConfig.max_radius) radius = parseInt(globalConfig.max_radius);
+                }
+                return { lat, lng, radius };
+            };
+
+            const handleLogin = async (nip, password) => {
+                setIsLoading(true); setError(null);
+                try {
+                    const result = await apiCall({ action: 'login', nip, password });
+                    if(result.success) { 
+                        const userData = result.data;
+                        setUser(userData);
+                        const newConfig = getOfficeConfigFromUser(userData, result.global_config);
+                        setOfficeConfig(newConfig);
+                        localStorage.setItem('sikobor_user', JSON.stringify(userData));
+                        localStorage.setItem('sikobor_config', JSON.stringify(newConfig));
+                        fetchTodayStatus(userData.nip);
+                        setCurrentView('dashboard'); 
+                    } else setError(result.message);
+                } catch (e) { setError("Koneksi gagal."); } finally { setIsLoading(false); }
+            };
+
+            const handleSubmitAttendance = async (type, lat, long, imageBase64) => {
+                if(!user) return;
+                const result = await apiCall({ action: 'attendance', nip: user.nip, type, lat, long, image: imageBase64 });
+                if (result && result.success) fetchTodayStatus(user.nip);
+                return result;
+            };
+
+            const handleLogout = () => { 
+                setUser(null); 
+                setCurrentView('login'); 
+                setTodayAttendance({ in: '-', out: '-' }); 
+                localStorage.removeItem('sikobor_user');
+                localStorage.removeItem('sikobor_config');
+            };
+
+            const openProfileDetail = (type, title) => { setDetailParams({ type, title }); setCurrentView('profile-detail'); };
+
+            return (
+                <div className="flex justify-center min-h-screen bg-gray-200 font-sans antialiased">
+                    <div className="w-full sm:max-w-md bg-white sm:shadow-2xl min-h-screen overflow-hidden relative flex flex-col">
+                        {currentView === 'login' && <LoginScreen onLogin={handleLogin} isLoading={isLoading} error={error} />}
+                        {user && currentView === 'dashboard' && <Dashboard user={user} navigate={setCurrentView} onLogout={handleLogout} todayAttendance={todayAttendance} />}
+                        {user && (currentView === 'attendance-in' || currentView === 'attendance-out') && <AttendanceScreen type={currentView === 'attendance-in' ? 'in' : 'out'} navigate={setCurrentView} user={user} onSubmit={handleSubmitAttendance} officeConfig={officeConfig} />}
+                        {user && currentView === 'recap' && <RecapScreen navigate={setCurrentView} userNip={user.nip} />}
+                        {user && currentView === 'profile' && <ProfileScreen user={user} navigate={setCurrentView} openDetail={openProfileDetail} />}
+                        {user && currentView === 'profile-detail' && <ProfileDetailScreen user={user} navigate={setCurrentView} type={detailParams.type} title={detailParams.title} />}
+                        {user && currentView === 'adjustment' && <AdjustmentScreen navigate={setCurrentView} />}
+                        {user && currentView === 'ekinerja' && <EKinerjaScreen navigate={setCurrentView} />}
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

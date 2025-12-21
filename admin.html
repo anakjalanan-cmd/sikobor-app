@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - SIKOBOR (Final)</title>
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Leaflet Maps CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #020617; color: #f8fafc; }
+        
+        /* Glassmorphism Dark */
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .glass-panel { background: #1e293b; border: 1px solid #334155; }
+        .input-dark { background-color: #0f172a; border: 1px solid #334155; color: white; transition: all 0.2s; }
+        .input-dark:focus { border-color: #6366f1; outline: none; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2); }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideIn { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .toast-enter { animation: slideIn 0.3s ease-out forwards; }
+        @keyframes popUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal-enter { animation: popUp 0.2s ease-out forwards; }
+
+        /* Map Container Height */
+        #map-container { height: 400px; width: 100%; z-index: 0; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        
+        // CONFIGURATION (GUNAKAN URL DEPLOY TERBARU ANDA)
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyjY1FF4JtRC16dJ5tO2Kip-w8lvTEJCPYm7fnJ1ycLjGh6lmqBJ3hvAsfcPy4XK2fPEg/exec";
+
+        // --- ICON COMPONENT ---
+        const Icon = ({ name, size=20, className="" }) => {
+            const iconRef = useRef(null);
+            useEffect(() => {
+                if (iconRef.current && window.lucide) {
+                    const { createIcons, icons } = window.lucide;
+                    const kebabCase = str => str.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+                    const iconName = icons[name] ? name : 'CircleHelp';
+                    iconRef.current.innerHTML = `<i data-lucide="${kebabCase(iconName)}" class="${className}"></i>`;
+                    createIcons({ icons: { [name]: icons[name] || icons.CircleHelp }, attrs: { width: size, height: size, stroke: "currentColor", "stroke-width": 2, class: className }, nameAttr: 'data-lucide' });
+                }
+            }, [name, size, className]);
+            return <span ref={iconRef} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} />;
+        };
+
+        // --- TOAST COMPONENT ---
+        const Toast = ({ message, type, onClose }) => {
+            useEffect(() => { const timer = setTimeout(onClose, 3000); return () => clearTimeout(timer); }, [onClose]);
+            return (
+                <div className={`fixed bottom-6 right-6 px-6 py-4 rounded-xl shadow-2xl text-white font-bold flex items-center gap-3 z-[10000] toast-enter border border-white/10 backdrop-blur-md ${type === 'success' ? 'bg-emerald-600/90' : 'bg-red-600/90'}`}>
+                    <Icon name={type === 'success' ? 'CheckCircle' : 'AlertCircle'} size={24} className="text-white" />
+                    <span>{message}</span>
+                </div>
+            );
+        };
+
+        // --- LOGOUT CONFIRMATION TOAST ---
+        const LogoutConfirm = ({ onConfirm, onCancel }) => {
+            return (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10001] flex items-center justify-center p-4 animate-fade-in">
+                    <div className="glass-panel p-6 rounded-2xl shadow-2xl w-full max-w-sm modal-enter border border-slate-600">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="bg-red-500/20 p-3 rounded-full mb-4">
+                                <Icon name="LogOut" size={32} className="text-red-500" />
+                            </div>
+                            <h3 className="text-xl font-bold text-white mb-2">Konfirmasi Logout</h3>
+                            <p className="text-slate-400 mb-6 text-sm">Apakah Anda yakin ingin keluar dari aplikasi admin?</p>
+                            <div className="flex gap-3 w-full">
+                                <button onClick={onCancel} className="flex-1 px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium transition-colors">
+                                    Batal
+                                </button>
+                                <button onClick={onConfirm} className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white hover:bg-red-700 font-bold shadow-lg shadow-red-900/30 transition-colors">
+                                    Ya, Logout
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- MAP PICKER COMPONENT (LEAFLET) ---
+        const MapPicker = ({ lat, lng, radius, onLocationSelect }) => {
+            const mapRef = useRef(null);
+            const markerRef = useRef(null);
+            const circleRef = useRef(null);
+
+            useEffect(() => {
+                if (!mapRef.current) {
+                    const initialLat = lat || -6.595038;
+                    const initialLng = lng || 106.797432;
+
+                    mapRef.current = L.map('map-container').setView([initialLat, initialLng], 15);
+
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; OpenStreetMap contributors'
+                    }).addTo(mapRef.current);
+
+                    markerRef.current = L.marker([initialLat, initialLng], { draggable: true }).addTo(mapRef.current);
+                    
+                    circleRef.current = L.circle([initialLat, initialLng], {
+                        color: 'blue',
+                        fillColor: '#3b82f6',
+                        fillOpacity: 0.2,
+                        radius: radius || 100
+                    }).addTo(mapRef.current);
+
+                    mapRef.current.on('click', function(e) {
+                        const { lat, lng } = e.latlng;
+                        updateMapPosition(lat, lng);
+                        onLocationSelect(lat, lng);
+                    });
+
+                    markerRef.current.on('dragend', function(e) {
+                        const { lat, lng } = e.target.getLatLng();
+                        updateMapPosition(lat, lng);
+                        onLocationSelect(lat, lng);
+                    });
+                } else {
+                    updateMapPosition(lat, lng, radius);
+                }
+            }, [lat, lng, radius]);
+
+            const updateMapPosition = (latitude, longitude, rad) => {
+                if (mapRef.current && markerRef.current && circleRef.current) {
+                    const newLatLng = new L.LatLng(latitude, longitude);
+                    markerRef.current.setLatLng(newLatLng);
+                    circleRef.current.setLatLng(newLatLng);
+                    if(rad) circleRef.current.setRadius(rad);
+                    mapRef.current.panTo(newLatLng);
+                }
+            };
+
+            return <div id="map-container" className="rounded-xl shadow-inner border border-slate-700"></div>;
+        };
+
+        // --- HELPER ICONS ---
+        const getIconForKey = (key) => {
+             const k = key.toLowerCase();
+             if (k.includes('tgl') || k.includes('tahun')) return <Icon name="Calendar" size={16} className="text-blue-400" />;
+             if (k.includes('nama') || k.includes('keluarga')) return <Icon name="User" size={16} className="text-emerald-400" />;
+             if (k.includes('pendidikan')) return <Icon name="GraduationCap" size={16} className="text-purple-400" />;
+             return <Icon name="Info" size={16} className="text-slate-400" />;
+        };
+
+        // --- BIODATA ITEM ---
+        const BiodataItem = ({ label, valueKey, data, isEditing, onChange }) => {
+            const val = data[valueKey] || '';
+            return (
+                <div className="mb-4 border-b border-slate-700/50 pb-2 last:mb-0 last:border-0">
+                    <div className="flex items-center gap-2 mb-1">
+                        {getIconForKey(label)}
+                        <span className="text-xs text-slate-400 font-bold uppercase tracking-wide">{label}</span>
+                    </div>
+                    {isEditing && valueKey !== 'nip' ? (
+                        <input 
+                            className="w-full input-dark p-2 rounded text-sm"
+                            value={val}
+                            onChange={(e) => onChange(valueKey, e.target.value)}
+                        />
+                    ) : (
+                        <div className="pl-6 text-sm font-medium text-slate-200 min-h-[20px]">{String(val || '-')}</div>
+                    )}
+                </div>
+            );
+        };
+
+        // --- LOGIN SCREEN ---
+        const Login = ({ onLogin }) => {
+            const [user, setUser] = useState("");
+            const [pass, setPass] = useState("");
+            const [loading, setLoading] = useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                try {
+                    const res = await fetch(SCRIPT_URL, {
+                        method: "POST",
+                        body: JSON.stringify({ action: "adminLogin", username: user, password: pass })
+                    });
+                    const data = await res.json();
+                    if (data.success) onLogin(data.token);
+                    else alert(data.message);
+                } catch (err) { alert("Gagal koneksi."); }
+                setLoading(false);
+            };
+
+            return (
+                <div className="min-h-screen flex items-center justify-center bg-slate-950 relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
+                    <div className="glass p-10 rounded-3xl shadow-2xl w-96 relative z-10 border border-slate-700 animate-fade-in">
+                        <div className="flex justify-center mb-6">
+                            <div className="p-4 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-600/20">
+                                <Icon name="ShieldCheck" size={32} className="text-white" />
+                            </div>
+                        </div>
+                        <h1 className="text-3xl font-bold text-center mb-2 text-white">Admin SIKOBOR</h1>
+                        <p className="text-slate-400 text-center mb-8 text-sm">Sistem Kehadiran Kota Bogor</p>
+                        <form onSubmit={handleSubmit} className="space-y-5">
+                            <input className="w-full p-3 input-dark rounded-xl" placeholder="Username" value={user} onChange={e=>setUser(e.target.value)} />
+                            <input className="w-full p-3 input-dark rounded-xl" type="password" placeholder="Password" value={pass} onChange={e=>setPass(e.target.value)} />
+                            <button disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white p-3.5 rounded-xl font-bold shadow-lg shadow-indigo-600/20 transition-all flex justify-center gap-2">
+                                {loading ? <Icon name="Loader" className="animate-spin" /> : "Masuk Dashboard"}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- PROFILE MODAL ---
+        const ProfileModal = ({ user, onClose, showToast }) => {
+            const [activeTab, setActiveTab] = useState('Profile_Biodata');
+            const [dataList, setDataList] = useState([]); 
+            const [loading, setLoading] = useState(false);
+            const [isEditing, setIsEditing] = useState(false);
+            const [saving, setSaving] = useState(false);
+            const [latestEdu, setLatestEdu] = useState(null);
+
+            const SCHEMAS = {
+                'Profile_Biodata': [
+                    { key: 'status_pegawai', label: 'Status Pegawai' }, { key: 'golongan', label: 'Golongan' },
+                    { key: 'tmt_golongan', label: 'TMT Golongan' }, { key: 'jabatan', label: 'Jabatan' },
+                    { key: 'kelas_jabatan', label: 'Kelas Jabatan' }, { key: 'eselon', label: 'Eselon' },
+                    { key: 'jenis_kepegawaian', label: 'Jenis Kepegawaian' }, { key: 'opd', label: 'OPD' },
+                    { key: 'npwp', label: 'NPWP' }, { key: 'tempat_lahir', label: 'Tempat Lahir' },
+                    { key: 'tanggal_lahir', label: 'Tanggal Lahir' }, { key: 'pendidikan_terakhir', label: 'Pendidikan Terakhir' },
+                    { key: 'agama', label: 'Agama' }, { key: 'alamat', label: 'Alamat' },
+                    { key: 'no_hp', label: 'No HP' }, { key: 'email', label: 'Email' }
+                ],
+                'Profile_Pendidikan': [{ key: 'tingkat', label: 'Tingkat' }, { key: 'nama_sekolah', label: 'Nama Sekolah' }, { key: 'jurusan', label: 'Jurusan' }, { key: 'tahun_lulus', label: 'Tahun Lulus' }]
+            };
+
+            const tabs = [
+                { id: 'Profile_Biodata', label: 'Biodata', icon: 'User' },
+                { id: 'Profile_Pendidikan', label: 'Pendidikan', icon: 'GraduationCap' },
+                { id: 'Profile_Jabatan', label: 'Jabatan', icon: 'Briefcase' },
+                { id: 'Profile_Pangkat', label: 'Pangkat', icon: 'Award' },
+                { id: 'Profile_Diklat', label: 'Diklat', icon: 'BookOpen' },
+                { id: 'Profile_KGB', label: 'KGB', icon: 'Banknote' },
+                { id: 'Profile_SKP', label: 'SKP', icon: 'Target' },
+                { id: 'Profile_Keluarga', label: 'Keluarga', icon: 'Users' },
+            ];
+
+            useEffect(() => { if(user) fetchData(); setIsEditing(false); }, [activeTab, user]);
+
+            const fetchData = async () => {
+                setLoading(true);
+                try {
+                    const res = await fetch(`${SCRIPT_URL}?action=getProfile&type=${activeTab}&nip=${user.nip}&t=${new Date().getTime()}`);
+                    const json = await res.json();
+                    let resultData = Array.isArray(json) ? json : [];
+                    if (activeTab === 'Profile_Biodata' && resultData.length === 0) resultData = [{}];
+                    setDataList(resultData);
+
+                    if (activeTab === 'Profile_Biodata') {
+                        const eduRes = await fetch(`${SCRIPT_URL}?action=getProfile&type=Profile_Pendidikan&nip=${user.nip}&t=${new Date().getTime()}`);
+                        const eduJson = await eduRes.json();
+                        if(Array.isArray(eduJson) && eduJson.length > 0) {
+                            const sorted = eduJson.sort((a,b) => (parseInt(a.tahun_lulus)||0) - (parseInt(b.tahun_lulus)||0)).reverse();
+                            setLatestEdu(sorted[0]);
+                        }
+                    }
+                } catch (e) { setDataList([]); }
+                setLoading(false);
+            };
+
+            const handleChange = (index, key, value) => {
+                const newData = [...dataList];
+                if (!newData[index]) newData[index] = {};
+                newData[index][key] = value;
+                setDataList(newData);
+            };
+
+            const handleAddRow = () => setDataList([...dataList, {}]);
+            
+            const handleRemoveRow = (index) => {
+                if(!confirm("Hapus baris data ini?")) return;
+                const newData = dataList.filter((_, i) => i !== index);
+                setDataList(newData);
+            };
+
+            const handleSave = async () => {
+                if(!confirm("Simpan perubahan data?")) return;
+                setSaving(true);
+                try {
+                    const res = await fetch(SCRIPT_URL, {
+                        method: "POST",
+                        body: JSON.stringify({ action: "updateProfile", type: activeTab, nip: user.nip, data: dataList })
+                    });
+                    const result = await res.json();
+                    if(result.success) {
+                        showToast("Berhasil disimpan", 'success');
+                        setIsEditing(false);
+                        fetchData();
+                    } else showToast(result.message, 'error');
+                } catch(e) { showToast("Gagal menyimpan", 'error'); }
+                setSaving(false);
+            };
+
+            const renderContent = () => {
+                if (loading) return <div className="text-center py-20 text-slate-500"><Icon name="Loader" className="animate-spin mb-2 inline"/> Memuat data...</div>;
+
+                if (activeTab === 'Profile_Biodata') {
+                    const bio = dataList[0] || {};
+                    const eduString = latestEdu ? `${latestEdu.tingkat} ${latestEdu.jurusan} (${latestEdu.nama_sekolah})` : (bio.pendidikan_terakhir || '-');
+                    return (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                                <h3 className="font-bold text-indigo-400 mb-4 flex gap-2"><Icon name="Briefcase"/> Data Kepegawaian</h3>
+                                <div className="grid grid-cols-1 gap-2">
+                                    <BiodataItem label="NIP" valueKey="nip" data={bio} isEditing={false} />
+                                    {SCHEMAS['Profile_Biodata'].slice(0, 8).map(f => (
+                                        <BiodataItem key={f.key} label={f.label} valueKey={f.key} data={bio} isEditing={isEditing} onChange={(k, v) => handleChange(0, k, v)} />
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                                <h3 className="font-bold text-emerald-400 mb-4 flex gap-2"><Icon name="User"/> Data Pribadi</h3>
+                                <div className="grid grid-cols-1 gap-2">
+                                    {SCHEMAS['Profile_Biodata'].slice(8, 11).map(f => (
+                                        <BiodataItem key={f.key} label={f.label} valueKey={f.key} data={bio} isEditing={isEditing} onChange={(k, v) => handleChange(0, k, v)} />
+                                    ))}
+                                    <div className="mb-4 border-b border-slate-700/50 pb-2">
+                                        <div className="flex items-center gap-2 mb-1"><Icon name="GraduationCap" size={16} className="text-purple-400"/><span className="text-xs text-slate-400 font-bold uppercase">Pendidikan Terakhir</span></div>
+                                        <div className="pl-6 text-sm text-slate-200">{eduString}</div>
+                                    </div>
+                                    {SCHEMAS['Profile_Biodata'].slice(12).map(f => (
+                                        <BiodataItem key={f.key} label={f.label} valueKey={f.key} data={bio} isEditing={isEditing} onChange={(k, v) => handleChange(0, k, v)} />
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+
+                const genericFields = SCHEMAS[activeTab] || Object.keys(dataList[0] || {}).filter(k => k !== 'nip').map(k => ({key: k, label: k.toUpperCase()}));
+
+                return (
+                    <div className="space-y-4">
+                        {dataList.length === 0 && !isEditing && <div className="text-center py-10 text-slate-600">Belum ada data.</div>}
+                        {dataList.map((item, index) => (
+                            <div key={index} className="bg-slate-800 p-5 rounded-xl border border-slate-700 relative group">
+                                {isEditing && <button onClick={()=>handleRemoveRow(index)} className="absolute top-4 right-4 text-red-500 hover:bg-red-500/10 p-2 rounded-full"><Icon name="Trash2"/></button>}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pr-10">
+                                    {genericFields.map(f => (
+                                        <div key={f.key} className="flex flex-col">
+                                            <label className="text-xs text-slate-500 font-bold uppercase mb-1">{f.label}</label>
+                                            {isEditing ? <input className="input-dark p-2 rounded text-sm" value={item[f.key]||''} onChange={e=>handleChange(index, f.key, e.target.value)} /> : <div className="text-sm text-slate-200">{item[f.key]||'-'}</div>}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                        {isEditing && <button onClick={handleAddRow} className="w-full py-3 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 hover:text-indigo-400 hover:border-indigo-500/50 hover:bg-slate-800 transition-all flex justify-center items-center gap-2"><Icon name="Plus"/> Tambah Data</button>}
+                    </div>
+                );
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-slate-950 w-full max-w-6xl h-[90vh] rounded-2xl shadow-2xl border border-slate-700 flex overflow-hidden">
+                        <div className="w-64 bg-slate-900 border-r border-slate-800 p-4 flex flex-col">
+                            <div className="mb-6 text-center pt-4">
+                                <div className="w-20 h-20 mx-auto rounded-full overflow-hidden mb-3 border-2 border-indigo-500"><img src={user.photoUrl} className="w-full h-full object-cover"/></div>
+                                <h3 className="font-bold text-white truncate">{user.name}</h3>
+                                <p className="text-xs text-slate-400">{user.nip}</p>
+                            </div>
+                            <div className="space-y-1 overflow-y-auto flex-1 custom-scrollbar">
+                                {tabs.map(tab => (
+                                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === tab.id ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}>
+                                        <Icon name={tab.icon} size={18} /> {tab.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="flex-1 flex flex-col bg-slate-900">
+                            <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900 sticky top-0 z-10">
+                                <h2 className="text-xl font-bold text-white flex gap-2"><Icon name="LayoutDashboard" className="text-indigo-500"/> {tabs.find(t=>t.id===activeTab).label}</h2>
+                                <div className="flex gap-2">
+                                    {!isEditing ? <button onClick={()=>setIsEditing(true)} className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex gap-2 shadow-lg"><Icon name="Pencil" size={16}/> Edit</button> 
+                                    : <div className="flex gap-2"><button onClick={()=>{setIsEditing(false); fetchData()}} className="bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-bold">Batal</button><button onClick={handleSave} disabled={saving} className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex gap-2">{saving?<Icon name="Loader" className="animate-spin"/>:<Icon name="Save"/>} Simpan</button></div>}
+                                    <button onClick={onClose} className="p-2 hover:bg-red-500/20 text-slate-400 hover:text-red-500 rounded-full"><Icon name="X"/></button>
+                                </div>
+                            </div>
+                            <div className="p-6 flex-1 overflow-y-auto">{renderContent()}</div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- DASHBOARD ---
+        const Dashboard = ({ onLogout }) => {
+            const [view, setView] = useState("users");
+            const [users, setUsers] = useState([]);
+            const [attendance, setAttendance] = useState([]);
+            const [permissions, setPermissions] = useState([]);
+            const [config, setConfig] = useState({});
+            const [loading, setLoading] = useState(false);
+            
+            const [searchTerm, setSearchTerm] = useState("");
+            const [selectedUserProfile, setSelectedUserProfile] = useState(null);
+            const [showUserModal, setShowUserModal] = useState(false);
+            const [editingUser, setEditingUser] = useState(null);
+            const [formData, setFormData] = useState({});
+            const [toast, setToast] = useState(null);
+            const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+            const showToast = (message, type) => { setToast({ message, type }); setTimeout(() => setToast(null), 3000); };
+
+            useEffect(() => {
+                if (view === 'users') fetchUsers();
+                if (view === 'attendance') fetchAttendance();
+                if (view === 'approvals') fetchPermissions();
+                if (view === 'config') fetchConfig();
+            }, [view]);
+
+            const fetchUsers = async () => { setLoading(true); try { const res = await fetch(`${SCRIPT_URL}?action=getAllUsers`); const d = await res.json(); setUsers(Array.isArray(d) ? d : []); } catch(e){} setLoading(false); };
+            const fetchAttendance = async () => { setLoading(true); try { const res = await fetch(`${SCRIPT_URL}?action=getAllAttendance`); const d = await res.json(); setAttendance(Array.isArray(d) ? d : []); } catch(e){} setLoading(false); };
+            const fetchPermissions = async () => { setLoading(true); try { const res = await fetch(`${SCRIPT_URL}?action=getAllPermissions`); const d = await res.json(); setPermissions(Array.isArray(d) ? d : []); } catch(e){} setLoading(false); };
+            const fetchConfig = async () => { try { const res = await fetch(`${SCRIPT_URL}?action=getGlobalConfig`); const d = await res.json(); setConfig(d); } catch(e){} };
+
+            const handleSaveConfig = async (e) => {
+                e.preventDefault(); if(!confirm("Simpan config?")) return;
+                setLoading(true);
+                await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "saveConfig", config: { lat: e.target.lat.value, lng: e.target.lng.value, radius: e.target.rad.value } }) });
+                showToast("Config Tersimpan", 'success'); setLoading(false); fetchConfig();
+            };
+
+            const handleSaveUser = async (e) => {
+                e.preventDefault(); setLoading(true);
+                await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "saveUser", userData: formData }) });
+                showToast("Data Pegawai Tersimpan", 'success'); setShowUserModal(false); fetchUsers();
+            };
+            
+            const handlePermission = async (p, status) => {
+                const note = prompt("Catatan (Opsional):"); if(note===null) return;
+                setLoading(true);
+                await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "respondPermission", id: p.timestamp, nip: p.nip, status, note }) });
+                showToast(`Izin ${status}`, 'success'); fetchPermissions();
+            };
+
+            const openUserModal = (u) => { setEditingUser(u); setFormData(u || { nip: "", password: "", name: "", unit: "", role: "", office_lat: "", office_lng: "", max_radius: "" }); setShowUserModal(true); };
+
+            // MAP PICKER STATE
+            const [mapLat, setMapLat] = useState(-6.595038);
+            const [mapLng, setMapLng] = useState(106.797432);
+            
+            return (
+                <div className="flex min-h-screen bg-slate-950">
+                    <div className="w-72 bg-slate-900 border-r border-slate-800 p-6 fixed h-full flex flex-col">
+                         <h2 className="text-2xl font-bold mb-8 flex items-center gap-2"><Icon name="ShieldCheck" className="text-indigo-500"/> Admin</h2>
+                         <nav className="space-y-2 flex-1">
+                            <button onClick={() => setView('users')} className={`w-full flex gap-3 text-left p-3 rounded transition-colors ${view==='users'?'bg-indigo-600 text-white shadow-lg':'text-slate-400 hover:bg-slate-800'}`}><Icon name="Users"/> Pegawai</button>
+                            <button onClick={() => setView('attendance')} className={`w-full flex gap-3 text-left p-3 rounded transition-colors ${view==='attendance'?'bg-indigo-600 text-white shadow-lg':'text-slate-400 hover:bg-slate-800'}`}><Icon name="CalendarCheck"/> Absensi</button>
+                            <button onClick={() => setView('approvals')} className={`w-full flex gap-3 text-left p-3 rounded transition-colors ${view==='approvals'?'bg-indigo-600 text-white shadow-lg':'text-slate-400 hover:bg-slate-800'}`}><Icon name="FileCheck"/> Persetujuan</button>
+                            <button onClick={() => setView('config')} className={`w-full flex gap-3 text-left p-3 rounded transition-colors ${view==='config'?'bg-indigo-600 text-white shadow-lg':'text-slate-400 hover:bg-slate-800'}`}><Icon name="MapPin"/> Lokasi Pusat</button>
+                        </nav>
+                        <button onClick={() => setShowLogoutConfirm(true)} className="mt-auto text-red-400 hover:text-red-300 flex gap-2 p-2 w-full text-left rounded hover:bg-red-500/10"><Icon name="LogOut"/> Logout</button>
+                    </div>
+
+                    <div className="ml-72 flex-1 p-8">
+                        {view === 'users' && (
+                            <div className="animate-fade-in">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-3xl font-bold text-white">Data Pegawai</h2>
+                                    <button onClick={() => openUserModal(null)} className="bg-green-600 hover:bg-green-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg flex items-center gap-2"><Icon name="Plus"/> Tambah</button>
+                                </div>
+                                <div className="glass-panel rounded-2xl overflow-hidden shadow-xl">
+                                    <div className="p-4 border-b border-slate-700 bg-slate-900/50 flex gap-4">
+                                        <div className="relative flex-1">
+                                            <Icon name="Search" className="absolute left-3 top-2.5 text-slate-500" size={18}/>
+                                            <input className="w-full pl-10 input-dark p-2 rounded-lg" placeholder="Cari Pegawai..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)}/>
+                                        </div>
+                                    </div>
+                                    <table className="w-full text-left text-slate-300">
+                                        <thead className="bg-slate-800 text-xs uppercase font-bold text-slate-400"><tr><th className="p-4">NIP</th><th className="p-4">Nama</th><th className="p-4">Unit</th><th className="p-4 text-center">Aksi</th></tr></thead>
+                                        <tbody className="divide-y divide-slate-800">
+                                            {users.filter(u=>u.name.toLowerCase().includes(searchTerm.toLowerCase())).map(u => (
+                                                <tr key={u.nip} className="hover:bg-slate-800/50">
+                                                    <td className="p-4 font-mono text-indigo-400">{u.nip}</td>
+                                                    <td className="p-4 font-bold text-white">{u.name}</td>
+                                                    <td className="p-4">{u.unit}</td>
+                                                    <td className="p-4 flex justify-center gap-2">
+                                                        <button onClick={() => setSelectedUserProfile(u)} className="bg-emerald-600/20 text-emerald-400 px-3 py-1 rounded text-xs border border-emerald-600/30 hover:bg-emerald-600 hover:text-white transition-all">Detail</button>
+                                                        <button onClick={() => openUserModal(u)} className="p-1.5 text-blue-400 hover:bg-blue-500/20 rounded"><Icon name="Pencil" size={16}/></button>
+                                                        <button onClick={() => handleDeleteUser(u.nip)} className="p-1.5 text-red-600 hover:bg-red-500/20 rounded"><Icon name="Trash2" size={16}/></button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {view === 'config' && (
+                             <div className="animate-fade-in flex gap-6">
+                                <div className="w-1/3 glass-panel p-6 rounded-2xl shadow-xl h-fit">
+                                    <h2 className="text-xl font-bold text-white mb-4">Edit Lokasi</h2>
+                                    <form onSubmit={handleSaveConfig} className="space-y-4">
+                                        <div><label className="text-sm font-bold text-slate-400">Latitude</label><input name="lat" value={mapLat} onChange={e=>setMapLat(e.target.value)} className="w-full input-dark p-2 rounded"/></div>
+                                        <div><label className="text-sm font-bold text-slate-400">Longitude</label><input name="lng" value={mapLng} onChange={e=>setMapLng(e.target.value)} className="w-full input-dark p-2 rounded"/></div>
+                                        <div><label className="text-sm font-bold text-slate-400">Radius (m)</label><input name="rad" defaultValue={config.max_radius} className="w-full input-dark p-2 rounded"/></div>
+                                        <button disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white p-3 rounded-lg font-bold shadow-lg mt-4">{loading?'Menyimpan...':'Simpan'}</button>
+                                    </form>
+                                </div>
+                                <div className="w-2/3 glass-panel p-2 rounded-2xl shadow-xl h-[500px]">
+                                    <MapPicker lat={parseFloat(config.office_lat)} lng={parseFloat(config.office_lng)} radius={parseInt(config.max_radius)} onLocationSelect={(lat,lng)=>{setMapLat(lat); setMapLng(lng);}} />
+                                </div>
+                            </div>
+                        )}
+                        
+                        {view === 'approvals' && (
+                            <div className="animate-fade-in glass-panel rounded-2xl overflow-hidden shadow-xl">
+                                <h2 className="text-2xl font-bold text-white p-6 border-b border-slate-700">Persetujuan Izin</h2>
+                                <table className="w-full text-left text-slate-300">
+                                    <thead className="bg-slate-800 text-xs uppercase font-bold text-slate-400"><tr><th className="p-4">Tanggal</th><th className="p-4">Pegawai</th><th className="p-4">Jenis</th><th className="p-4">Alasan</th><th className="p-4 text-center">Status</th><th className="p-4 text-center">Aksi</th></tr></thead>
+                                    <tbody className="divide-y divide-slate-800">
+                                        {permissions.map((p, i) => (
+                                            <tr key={i} className="hover:bg-slate-800/50">
+                                                <td className="p-4 text-xs text-slate-500">{new Date(p.timestamp).toLocaleDateString()}</td>
+                                                <td className="p-4"><div>{p.name}</div><div className="text-xs text-slate-500">{p.nip}</div></td>
+                                                <td className="p-4"><span className="bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded text-xs">{p.jenis}</span></td>
+                                                <td className="p-4 italic text-slate-400">"{p.alasan}"</td>
+                                                <td className="p-4 text-center"><span className={`px-2 py-1 rounded text-xs font-bold ${p.status==='Pending'?'bg-yellow-500/20 text-yellow-500':p.status==='Disetujui'?'bg-green-500/20 text-green-500':'bg-red-500/20 text-red-500'}`}>{p.status}</span></td>
+                                                <td className="p-4 text-center">
+                                                    {p.status === 'Pending' && <div className="flex justify-center gap-2">
+                                                        <button onClick={()=>handlePermissionResponse(p,'Disetujui')} className="bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded text-xs shadow">Terima</button>
+                                                        <button onClick={()=>handlePermissionResponse(p,'Ditolak')} className="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-xs shadow">Tolak</button>
+                                                    </div>}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                        
+                        {view === 'attendance' && (
+                             <div className="animate-fade-in glass-panel rounded-2xl overflow-hidden shadow-xl">
+                                <h2 className="text-2xl font-bold text-white p-6 border-b border-slate-700">Riwayat Absensi</h2>
+                                <table className="w-full text-left text-slate-300">
+                                    <thead className="bg-slate-800 text-xs uppercase font-bold text-slate-400"><tr><th className="p-4">Waktu</th><th className="p-4">Nama</th><th className="p-4">Status</th><th className="p-4">Lokasi</th></tr></thead>
+                                    <tbody className="divide-y divide-slate-800">
+                                        {attendance.map((a, i) => (
+                                            <tr key={i} className="hover:bg-slate-800/50">
+                                                <td className="p-4"><div>{a.time}</div><div className="text-xs text-slate-500">{a.date}</div></td>
+                                                <td className="p-4"><div>{a.name}</div><div className="text-xs text-slate-500">{a.nip}</div></td>
+                                                <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${a.type==='in'?'bg-green-500/20 text-green-400':'bg-red-500/20 text-red-400'}`}>{a.type==='in'?'DATANG':'PULANG'}</span></td>
+                                                <td className="p-4 text-xs font-mono text-blue-400"><a href={`https://maps.google.com/?q=${a.lat},${a.lng}`} target="_blank">{a.lat}, {a.lng}</a></td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {showUserModal && (
+                            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                                <div className="glass-panel p-8 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+                                    <h3 className="text-xl font-bold text-white mb-6">Kelola Pegawai</h3>
+                                    <form onSubmit={handleSaveUser} className="space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-xs text-slate-400 font-bold mb-1 block">NIP (Wajib)</label>
+                                                <input required className="input-dark w-full p-3 rounded-lg" placeholder="Contoh: 1985..." value={formData.nip} onChange={e => setFormData({...formData, nip: e.target.value})} />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-slate-400 font-bold mb-1 block">Password</label>
+                                                <input required className="input-dark w-full p-3 rounded-lg" placeholder="******" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+                                            </div>
+                                        </div>
+                                        
+                                        <div>
+                                            <label className="text-xs text-slate-400 font-bold mb-1 block">Nama Lengkap</label>
+                                            <input required className="input-dark w-full p-3 rounded-lg" placeholder="Nama Pegawai" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-xs text-slate-400 font-bold mb-1 block">Unit Kerja</label>
+                                                <input className="input-dark w-full p-3 rounded-lg" placeholder="Dinas..." value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})} />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-slate-400 font-bold mb-1 block">Jabatan</label>
+                                                <input className="input-dark w-full p-3 rounded-lg" placeholder="Staff..." value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} />
+                                            </div>
+                                        </div>
+
+                                        {/* BAGIAN LOKASI KHUSUS (BARU DITAMBAHKAN) */}
+                                        <div className="border-t border-slate-700 pt-4 mt-2">
+                                            <p className="text-sm font-bold text-indigo-400 mb-2 flex items-center gap-2"><Icon name="MapPin" size={14}/> Lokasi Khusus (Opsional)</p>
+                                            <p className="text-xs text-slate-500 mb-3">Isi jika lokasi kerja pegawai ini berbeda dengan kantor pusat.</p>
+                                            
+                                            <div className="grid grid-cols-2 gap-4 mb-3">
+                                                <div>
+                                                    <label className="text-xs text-slate-400 font-bold mb-1 block">Latitude</label>
+                                                    <input className="input-dark w-full p-3 rounded-lg text-sm" placeholder="-6.xxxx" value={formData.office_lat} onChange={e => setFormData({...formData, office_lat: e.target.value})} />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-slate-400 font-bold mb-1 block">Longitude</label>
+                                                    <input className="input-dark w-full p-3 rounded-lg text-sm" placeholder="106.xxxx" value={formData.office_lng} onChange={e => setFormData({...formData, office_lng: e.target.value})} />
+                                                </div>
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="text-xs text-slate-400 font-bold mb-1 block">Radius Khusus (Meter)</label>
+                                                <input className="input-dark w-full p-3 rounded-lg text-sm" placeholder="Contoh: 50" value={formData.max_radius} onChange={e => setFormData({...formData, max_radius: e.target.value})} />
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-700">
+                                            <button type="button" onClick={() => setShowUserModal(false)} className="px-5 py-2 text-slate-300 hover:bg-slate-800 rounded-lg">Batal</button>
+                                            <button type="submit" className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-lg flex items-center gap-2">
+                                                {loading ? <Icon name="Loader" className="animate-spin" size={16}/> : <Icon name="Save" size={16}/>} Simpan
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {selectedUserProfile && <ProfileModal user={selectedUserProfile} onClose={() => setSelectedUserProfile(null)} showToast={showToast} />}
+                    {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+                    {showLogoutConfirm && <LogoutConfirm onConfirm={onLogout} onCancel={() => setShowLogoutConfirm(false)} />}
+                </div>
+            );
+        };
+
+        const AdminApp = () => {
+            const [token, setToken] = useState(localStorage.getItem("admin_token"));
+            const handleLogin = (t) => { localStorage.setItem("admin_token", t); setToken(t); };
+            const handleLogout = () => { localStorage.removeItem("admin_token"); setToken(null); };
+            return token ? <Dashboard onLogout={handleLogout} /> : <Login onLogin={handleLogin} />;
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<AdminApp />);
+    </script>
+</body>
+</html>
