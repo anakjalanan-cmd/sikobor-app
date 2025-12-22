@@ -6,8 +6,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#ffffff">
-    <title>SIKOBOR - Sistem Kehadiran Kota Bogor</title>
-    <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjmCDN_83Ji85cv_bpY1JhsS-6W32g5aa4QvCa7Vf4qIpXfLkYrYH2wg2aQiWmQicRIZkQ5kRlIhaAJW6tVrvoQAdlkamnv-SRoyt2Q6rHfHkeKUtog4SRVFuGLgi04qQIZYIsMyYbSa4uA9ADW5PN_cgH_tVRmeFcO9aaGWBixnV_uJnepyeJ4yifEyQ2m/s320/%E2%80%94Pngtree%E2%80%94fingerprint%20ai%20security%20biometric%20icon_20555184.png">
+    <title>SIKOBOR - Kehadiran Pegawai</title>
+    <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEj2CAxSxj60InPS2ZxBrUDzPw8TCnmFiMiAOhIS9Am1BNqz3Lytq-iMkYUdmtXTDxH4YKj10_51sEUIr9DoNdYDRbtXCLWtJZ0c03_2RcO7MmB9F2hnY2SW94In0hu17KeWoyWqlsnGYnm9exBBT37sMktvzHDRBNh5KC6PVQb89v_Anrkex4Zckm4QX7B2/s320/placeholder_4129855.png">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -116,7 +116,6 @@
             return url;
         };
 
-        // Date Parser for flexible formats
         const parseDateString = (dateString) => {
             if (!dateString) return null;
             const monthMap = {
@@ -186,18 +185,18 @@
             };
 
             return (
-                <div className="flex flex-col h-screen bg-blue-900 items-center justify-center p-6 safe-pb">
+                <div className="flex flex-col h-full w-full bg-blue-900 items-center justify-center p-6 safe-pb">
                     <div className="w-full max-w-xs text-center mb-8">
                         <div className="w-28 h-28 mx-auto mb-4 flex items-center justify-center bg-white/10 rounded-3xl backdrop-blur-sm border border-white/20 p-2 shadow-xl">
                              <img 
-                               src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEghe3V67bAa_u6Zzm8pHGG8zdmWSwoPYDJaXr9BgHimqfhyphenhyphen9M7EgOZNwBgkUoDYexm-ql3RAKi21ay7xaiWUq1SvHEPc_MSa_9g0QgD5G3tL8sgXbAUC0aUV5sCFVi6y-FXcBtOsrXjJS4mCEBLnMdevbHpGnfljIdpPVy46zL6-mNubvSemO22X1xlVsjV/s320/Logo%20atau%20Lambang%20Kota%20Bogor%20Transparan%20PNG.png" 
+                               src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEj2CAxSxj60InPS2ZxBrUDzPw8TCnmFiMiAOhIS9Am1BNqz3Lytq-iMkYUdmtXTDxH4YKj10_51sEUIr9DoNdYDRbtXCLWtJZ0c03_2RcO7MmB9F2hnY2SW94In0hu17KeWoyWqlsnGYnm9exBBT37sMktvzHDRBNh5KC6PVQb89v_Anrkex4Zckm4QX7B2/s320/placeholder_4129855.png" 
                                alt="Logo Kota Bogor" 
                                className="w-full h-full object-contain drop-shadow-md" 
                                onError={(e) => e.target.style.display = 'none'} 
                              />
                         </div>
                         <h1 className="text-3xl font-bold text-white tracking-wider mb-1">SIKOBOR</h1>
-                        <p className="text-blue-200 text-xs font-medium tracking-wide">Sistem Kehadiran Kota Bogor</p>
+                        <p className="text-blue-200 text-xs font-medium tracking-wide">Sistem Kehadiran Pegawai</p>
                     </div>
 
                     <div className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl border border-gray-100">
@@ -235,7 +234,7 @@
                         </form>
                     </div>
                     <div className="mt-auto text-white/40 text-xs py-6 font-medium">
-                        &copy; 2025 Pemerintah Daerah Kota Bogor
+                        &copy; 2025 anaknakal-project
                     </div>
                 </div>
             );
@@ -243,22 +242,16 @@
 
         const Dashboard = ({ user, navigate, onLogout, todayAttendance }) => {
             return (
-                <div className="flex flex-col min-h-screen bg-gray-50 pb-36 relative">
+                <div className="flex flex-col min-h-screen bg-gray-50 pb-36 relative w-full">
                     <div className="bg-white p-4 shadow-sm flex justify-between items-center sticky top-0 z-30 safe-pt">
-                        <div className="flex items-center gap-2"><div className="w-8 h-8 flex items-center justify-center">
-                                <img 
-                                    src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEghe3V67bAa_u6Zzm8pHGG8zdmWSwoPYDJaXr9BgHimqfhyphenhyphen9M7EgOZNwBgkUoDYexm-ql3RAKi21ay7xaiWUq1SvHEPc_MSa_9g0QgD5G3tL8sgXbAUC0aUV5sCFVi6y-FXcBtOsrXjJS4mCEBLnMdevbHpGnfljIdpPVy46zL6-mNubvSemO22X1xlVsjV/s320/Logo%20atau%20Lambang%20Kota%20Bogor%20Transparan%20PNG.png" 
-                                    alt="Logo" 
-                                    className="w-full h-full object-contain" 
-                                    onError={(e) => e.target.style.display = 'none'}
-                                />
-                            </div>
-                            <span className="font-bold text-gray-800">Sikobor Kota Bogor</span>
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 font-bold border border-blue-200">SK</div>
+                            <span className="font-bold text-gray-800">Sikobor</span>
                         </div>
                         <button className="text-gray-600"><Icon name="Grid" size={24} /></button>
                     </div>
 
-                    <div className="p-4 space-y-4">
+                    <div className="p-4 space-y-4 w-full">
                         <div className="flex justify-center -mb-12 z-10 relative pointer-events-none">
                             <div className="p-1 bg-white rounded-xl shadow-lg pointer-events-auto">
                                 <img src={getDirectPhotoUrl(user.photoUrl)} alt="Profile" className="w-24 h-28 object-cover rounded-lg bg-gray-200" referrerPolicy="no-referrer" onError={(e) => { e.target.onerror = null; e.target.src = "https://i.pravatar.cc/150?img=12"; }} />
@@ -318,7 +311,7 @@
 
                     {/* Floating Buttons with Safe Area support */}
                     <div className="fixed bottom-0 left-0 right-0 w-full bg-white/90 backdrop-blur-md border-t border-gray-200 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-40 safe-pb">
-                        <div className="max-w-md mx-auto p-4">
+                        <div className="max-w-md mx-auto p-4 w-full">
                             <div className="grid grid-cols-2 gap-4">
                                 <button onClick={() => navigate('attendance-in')} className="bg-green-600 hover:bg-green-700 text-white p-3 rounded-xl shadow-lg shadow-green-200 flex items-center justify-center gap-2 active:scale-95 transition-all">
                                     <div className="p-1.5 bg-white/20 rounded-full flex items-center justify-center"><Icon name="ChevronLeft" className="rotate-180" size={20}/></div>
@@ -400,13 +393,38 @@
                 setErrorMsg("Gagal mendapatkan lokasi. Pastikan GPS aktif.");
             };
 
-            useEffect(() => { getLocation(); }, [officeConfig]);
+            useEffect(() => {
+                getLocation();
+            }, [officeConfig]); 
 
+            // --- CAMERA LOGIC WITH SECURE CONTEXT CHECK ---
             const startCamera = async () => {
+                if (!window.isSecureContext) {
+                    setErrorMsg("Kamera memerlukan koneksi aman (HTTPS). Jika membuka file, gunakan web hosting.");
+                    return;
+                }
+
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-                    if (videoRef.current) { videoRef.current.srcObject = stream; setCameraActive(true); }
-                } catch (err) { setErrorMsg("Gagal akses kamera. Berikan izin kamera."); }
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { 
+                            facingMode: 'user',
+                            width: { ideal: 640 },
+                            height: { ideal: 480 }
+                        },
+                        audio: false 
+                    });
+                    
+                    if (videoRef.current) { 
+                        videoRef.current.srcObject = stream; 
+                        videoRef.current.setAttribute('playsinline', true);
+                        videoRef.current.setAttribute('muted', true);
+                        videoRef.current.play();
+                        setCameraActive(true); 
+                    }
+                } catch (err) { 
+                    console.error("Camera Error:", err);
+                    setErrorMsg("Gagal akses kamera. Berikan izin di pengaturan browser atau pastikan menggunakan HTTPS."); 
+                }
             };
 
             const stopCamera = () => {
@@ -419,8 +437,10 @@
 
             const handleTakeSelfieAndSubmit = async () => {
                 if (!location || distance === null || distance > officeConfig.radius) { 
-                    setErrorMsg("Anda berada di luar jangkauan kantor."); return; 
+                    setErrorMsg("Anda berada di luar jangkauan kantor."); 
+                    return; 
                 }
+                
                 setIsSubmitting(true);
                 const video = videoRef.current;
                 const canvas = canvasRef.current;
@@ -444,7 +464,7 @@
 
             return (
                 <div className="flex flex-col h-screen bg-gray-50">
-                    <div className="bg-white p-4 shadow-sm flex items-center gap-3 z-10 safe-pt">
+                    <div className="bg-white p-4 shadow-sm flex items-center gap-3 z-10">
                         <button onClick={() => { stopCamera(); navigate('dashboard'); }} className="text-gray-600"><Icon name="ChevronLeft" size={24} /></button>
                         <div className={`w-8 h-8 ${colorClass} rounded-lg flex items-center justify-center text-white`}><Icon name="MapPin" size={18} /></div>
                         <h1 className="font-bold text-lg text-gray-800">{title}</h1>
@@ -485,9 +505,15 @@
                     </div>
                     <div className="flex-1 px-4 -mt-10 relative z-20 flex flex-col items-center">
                         <div className="bg-white rounded-2xl shadow-2xl p-2 mb-6 w-full max-w-xs overflow-hidden relative border-4 border-white">
-                            <video ref={videoRef} autoPlay playsInline className="w-full h-64 object-cover rounded-xl bg-black transform scale-x-[-1]"></video>
+                            <video 
+                                ref={videoRef} 
+                                autoPlay 
+                                playsInline 
+                                muted
+                                className="w-full h-64 object-cover rounded-xl bg-black transform scale-x-[-1]" 
+                            ></video>
                             <canvas ref={canvasRef} className="hidden"></canvas>
-                            {!cameraActive && <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white text-xs">Memuat Kamera...</div>}
+                            {!cameraActive && <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white text-xs text-center px-4">{errorMsg || "Memuat Kamera..."}</div>}
                         </div>
                         <div className="w-full max-w-xs text-center">
                             {message ? <div className={`p-4 rounded-lg font-bold ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{message.text}</div> : 
@@ -498,6 +524,7 @@
             );
         };
 
+        // --- FIX: Date Formatting Logic in RecapScreen ---
         const RecapScreen = ({ navigate, userNip }) => {
             const [activeTab, setActiveTab] = useState('in');
             const [history, setHistory] = useState([]);
@@ -508,9 +535,14 @@
                 const fetchHistory = async () => {
                     setLoading(true); setFetchError(null);
                     try {
+                        // FIX: Force plain text content type for better compatibility with GAS
                         const response = await fetch(`${SCRIPT_URL}?action=getHistory&nip=${encodeURIComponent(userNip)}&t=${new Date().getTime()}`, { 
-                            method: "GET", credentials: "omit", redirect: "follow", headers: { "Content-Type": "text/plain" } 
+                            method: "GET", 
+                            credentials: "omit", 
+                            redirect: "follow",
+                            headers: { "Content-Type": "text/plain" }
                         });
+                        
                         if (!response.ok) throw new Error("Network error");
                         const data = await response.json();
                         if(Array.isArray(data)) setHistory(data); else setHistory([]);
@@ -521,7 +553,9 @@
 
             const filteredHistory = history.filter(item => activeTab === 'in' ? item.type === 'in' : item.type === 'out');
 
+            // FIX 1: Format Date DD/MM/YYYY (handling generic inputs)
             const formatRecapDate = (dateString) => {
+                // Use the helper we defined earlier
                 const dateObj = parseDateString(dateString);
                 if (!dateObj || isNaN(dateObj.getTime())) return dateString || '-';
                 
@@ -615,24 +649,43 @@
                 const fetchData = async () => {
                     setLoading(true); setError(null);
                     try {
+                        // FIX: Explicitly set header to text/plain for better GAS preflight handling
                         const response = await fetch(`${SCRIPT_URL}?action=getProfile&type=${type}&nip=${encodeURIComponent(user.nip)}&t=${new Date().getTime()}`, { 
-                            method: "GET", credentials: "omit", redirect: "follow", headers: { "Content-Type": "text/plain" } 
+                            method: "GET", 
+                            credentials: "omit", 
+                            redirect: "follow",
+                            headers: { "Content-Type": "text/plain" }
                         });
+
                         if (!response.ok) throw new Error("Network error");
+
                         const result = await response.json();
-                        if (result.error) setError(result.error); 
-                        else {
+                        
+                        if (result.error) {
+                            setError(result.error);
+                        } else {
                             setData(result);
                             if (type === 'Profile_Biodata') {
-                                const eduResponse = await fetch(`${SCRIPT_URL}?action=getProfile&type=Profile_Pendidikan&nip=${encodeURIComponent(user.nip)}&t=${new Date().getTime()}`, { method: "GET", credentials: "omit", redirect: "follow", headers: { "Content-Type": "text/plain" } });
-                                const eduResult = await eduResponse.json();
-                                if (Array.isArray(eduResult) && eduResult.length > 0) {
-                                    const sortedEdu = eduResult.sort((a, b) => (parseInt(a.tahun_lulus) || 0) - (parseInt(b.tahun_lulus) || 0)).reverse();
-                                    setLatestEducation(sortedEdu[0]);
-                                }
+                                 // Also fetch education with same fix
+                                 const eduResponse = await fetch(`${SCRIPT_URL}?action=getProfile&type=Profile_Pendidikan&nip=${encodeURIComponent(user.nip)}&t=${new Date().getTime()}`, { 
+                                     method: "GET", 
+                                     credentials: "omit", 
+                                     redirect: "follow",
+                                     headers: { "Content-Type": "text/plain" }
+                                 });
+                                 const eduResult = await eduResponse.json();
+                                 
+                                 if (Array.isArray(eduResult) && eduResult.length > 0) {
+                                     const sortedEdu = eduResult.sort((a, b) => {
+                                         const yearA = parseInt(a.tahun_lulus) || 0;
+                                         const yearB = parseInt(b.tahun_lulus) || 0;
+                                         return yearB - yearA;
+                                     });
+                                     setLatestEducation(sortedEdu[0]);
+                                 }
                             }
                         }
-                    } catch (e) { setError("Gagal mengambil data."); } finally { setLoading(false); }
+                    } catch (e) { setError("Gagal mengambil data. (Check Apps Script Permission)"); } finally { setLoading(false); }
                 };
                 fetchData();
             }, [type, user.nip]);
@@ -645,12 +698,17 @@
                 if (type === 'Profile_Biodata') {
                     const bio = data[0] || {};
                     const getValue = (keys) => { for (let k of keys) if (bio[k]) return bio[k]; return '-'; };
-                    const eduString = latestEducation ? `${latestEducation.tingkat || ''} ${latestEducation.jurusan || ''} (${latestEducation.nama_sekolah || ''})` : (bio.pendidikan_terakhir || '-');
+                    const eduString = latestEducation 
+                        ? `${latestEducation.tingkat || ''} ${latestEducation.jurusan || ''} (${latestEducation.nama_sekolah || ''})` 
+                        : (bio.pendidikan_terakhir || '-');
 
                     return (
                         <div className="space-y-6">
                             <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                                <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2"><div className="bg-blue-100 p-1.5 rounded text-blue-600"><Icon name="Briefcase" size={18}/></div><h3 className="font-bold text-gray-800">Data Kepegawaian</h3></div>
+                                <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
+                                    <div className="bg-blue-100 p-1.5 rounded text-blue-600"><Icon name="Briefcase" size={18}/></div>
+                                    <h3 className="font-bold text-gray-800">Data Kepegawaian</h3>
+                                </div>
                                 <div className="space-y-1">
                                     <BiodataItem label="Nomor Induk Pegawai (NIP)" value={getValue(['nip', 'nomor_induk_pegawai'])} iconKey="nip" />
                                     <BiodataItem label="Status Pegawai" value={getValue(['status_pegawai', 'status'])} iconKey="status" />
@@ -664,16 +722,19 @@
                                 </div>
                             </div>
                             <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                                <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2"><div className="bg-green-100 p-1.5 rounded text-green-600"><Icon name="User" size={18}/></div><h3 className="font-bold text-gray-800">Data Pribadi</h3></div>
+                                 <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
+                                    <div className="bg-green-100 p-1.5 rounded text-green-600"><Icon name="User" size={18}/></div>
+                                    <h3 className="font-bold text-gray-800">Data Pribadi</h3>
+                                </div>
                                 <div className="space-y-1">
-                                    <BiodataItem label="NPWP" value={getValue(['npwp'])} iconKey="npwp" />
-                                    <BiodataItem label="Tempat Lahir" value={getValue(['tempat_lahir'])} iconKey="tempat" />
-                                    <BiodataItem label="Tanggal Lahir" value={getValue(['tanggal_lahir', 'tgl_lahir'])} iconKey="tgl" />
-                                    <BiodataItem label="Pendidikan Terakhir" value={eduString} iconKey="pendidikan" />
-                                    <BiodataItem label="Agama" value={getValue(['agama'])} iconKey="agama" />
-                                    <BiodataItem label="Alamat" value={getValue(['alamat'])} iconKey="alamat" />
-                                    <BiodataItem label="No Handphone" value={getValue(['no_hp', 'no_handphone', 'hp'])} iconKey="hp" />
-                                    <BiodataItem label="Email" value={getValue(['email'])} iconKey="email" />
+                                     <BiodataItem label="NPWP" value={getValue(['npwp'])} iconKey="npwp" />
+                                     <BiodataItem label="Tempat Lahir" value={getValue(['tempat_lahir'])} iconKey="tempat" />
+                                     <BiodataItem label="Tanggal Lahir" value={getValue(['tanggal_lahir', 'tgl_lahir'])} iconKey="tgl" />
+                                     <BiodataItem label="Pendidikan Terakhir" value={eduString} iconKey="pendidikan" />
+                                     <BiodataItem label="Agama" value={getValue(['agama'])} iconKey="agama" />
+                                     <BiodataItem label="Alamat" value={getValue(['alamat'])} iconKey="alamat" />
+                                     <BiodataItem label="No Handphone" value={getValue(['no_hp', 'no_handphone', 'hp'])} iconKey="hp" />
+                                     <BiodataItem label="Email" value={getValue(['email'])} iconKey="email" />
                                 </div>
                             </div>
                         </div>
@@ -702,18 +763,116 @@
             );
         };
 
-        const AdjustmentScreen = ({ navigate }) => {
+        // --- UPDATED: AdjustmentScreen with Functional Submit & History ---
+        const AdjustmentScreen = ({ navigate, user }) => { 
             const [submitted, setSubmitted] = useState(false);
+            const [formData, setFormData] = useState({ tanggal: '', jenis: 'Sakit', alasan: '' });
+            const [loading, setLoading] = useState(false);
+            const [history, setHistory] = useState([]); // New state for history
+
+            // Fetch history on mount
+            useEffect(() => {
+                fetchPermissionHistory();
+            }, []);
+
+            const fetchPermissionHistory = async () => {
+                try {
+                     const response = await fetch(`${SCRIPT_URL}?action=getUserPermissions&nip=${encodeURIComponent(user.nip)}&t=${new Date().getTime()}`, { 
+                        method: "GET", credentials: "omit", redirect: "follow", headers: { "Content-Type": "text/plain" } 
+                    });
+                    const data = await response.json();
+                    if(Array.isArray(data)) {
+                        // Filter for current month
+                        const now = new Date();
+                        const currentMonth = now.getMonth();
+                        const currentYear = now.getFullYear();
+                        
+                        const filtered = data.filter(item => {
+                            const itemDate = new Date(item.tanggal);
+                            return itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear;
+                        });
+                        setHistory(filtered);
+                    }
+                } catch(e) { console.error("Gagal load history izin"); }
+            };
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                try {
+                    const response = await fetch(SCRIPT_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            action: 'submitPermission',
+                            nip: user.nip, 
+                            name: user.name, 
+                            tanggal: formData.tanggal,
+                            jenis: formData.jenis,
+                            alasan: formData.alasan
+                        }),
+                        headers: { "Content-Type": "text/plain" }
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        setSubmitted(true);
+                        // Refresh history immediately
+                        fetchPermissionHistory();
+                        
+                        setTimeout(() => {
+                            setSubmitted(false);
+                            // Optional: navigate back or stay to see history
+                            // navigate('dashboard'); 
+                        }, 2000);
+                    } else alert("Gagal: " + result.message);
+                } catch (err) { alert("Gagal koneksi."); } finally { setLoading(false); }
+            };
+
             return (
                 <div className="flex flex-col h-screen bg-gray-50">
                     <div className="bg-white p-4 shadow-sm flex items-center gap-3 safe-pt"><button onClick={() => navigate('dashboard')} className="text-gray-600"><Icon name="ChevronLeft" size={24} /></button><h1 className="font-bold text-lg text-gray-800">Penyesuaian Absen</h1></div>
-                    <div className="p-6">
-                        <form onSubmit={(e) => { e.preventDefault(); setSubmitted(true); setTimeout(() => { setSubmitted(false); alert("Terkirim!"); navigate('dashboard'); }, 1500); }} className="space-y-4 bg-white p-6 rounded-xl shadow-sm">
-                            <div><label className="block text-gray-600 text-sm font-bold mb-2">Tanggal</label><div className="relative"><Icon name="Calendar" className="absolute left-3 top-3 text-gray-400" size={18}/><input type="date" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2.5 pl-10 pr-4 outline-none" required/></div></div>
-                            <div><label className="block text-gray-600 text-sm font-bold mb-2">Jenis Absen</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 outline-none"><option>Penyesuaian Kehadiran</option><option>Absen Masuk</option><option>Absen Keluar</option></select></div>
-                            <div><label className="block text-gray-600 text-sm font-bold mb-2">Alasan</label><textarea className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 outline-none h-24" required></textarea></div>
-                            <button type="submit" className="w-full bg-amber-400 hover:bg-amber-500 text-white font-bold py-3 rounded-lg shadow-md flex items-center justify-center gap-2">{submitted ? <Icon name="Loader" className="animate-spin" size={20}/> : <><Icon name="Send" size={18}/> Kirim</>}</button>
-                        </form>
+                    
+                    <div className="flex-1 overflow-y-auto p-6 pb-20 safe-pb">
+                        {submitted ? (
+                            <div className="text-center py-10 bg-green-50 rounded-xl border border-green-200 mb-6">
+                                <Icon name="CheckCircle" className="text-green-500 mx-auto mb-3" size={48} />
+                                <h3 className="text-lg font-bold text-green-700">Berhasil Dikirim!</h3>
+                                <p className="text-sm text-green-600">Menunggu persetujuan admin.</p>
+                            </div>
+                        ) : (
+                            <form onSubmit={handleSubmit} className="space-y-4 bg-white p-6 rounded-xl shadow-sm mb-6">
+                                <div><label className="block text-gray-600 text-sm font-bold mb-2">Tanggal</label><div className="relative"><Icon name="Calendar" className="absolute left-3 top-3 text-gray-400" size={18}/><input type="date" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2.5 pl-10 pr-4 outline-none" required value={formData.tanggal} onChange={e => setFormData({...formData, tanggal: e.target.value})} /></div></div>
+                                <div><label className="block text-gray-600 text-sm font-bold mb-2">Jenis Pengajuan</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 outline-none" value={formData.jenis} onChange={e => setFormData({...formData, jenis: e.target.value})}><option value="Sakit">Sakit</option><option value="Izin">Izin</option><option value="Cuti">Cuti</option><option value="Koreksi Absen">Koreksi Absen</option></select></div>
+                                <div><label className="block text-gray-600 text-sm font-bold mb-2">Alasan</label><textarea className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 outline-none h-24" required placeholder="Jelaskan alasan..." value={formData.alasan} onChange={e => setFormData({...formData, alasan: e.target.value})}></textarea></div>
+                                <button type="submit" disabled={loading} className="w-full bg-amber-400 hover:bg-amber-500 text-white font-bold py-3 rounded-lg shadow-md flex items-center justify-center gap-2">{loading ? <Icon name="Loader" className="animate-spin" size={20}/> : <><Icon name="Send" size={18}/> Kirim Pengajuan</>}</button>
+                            </form>
+                        )}
+
+                        {/* HISTORY SECTION */}
+                        <div className="mt-8">
+                            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><Icon name="History" size={20} className="text-blue-500"/> Riwayat Bulan Ini</h3>
+                            {history.length === 0 ? (
+                                <div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-300">Belum ada riwayat.</div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {history.map((item, idx) => (
+                                        <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-start">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-bold text-gray-800">{item.jenis}</span>
+                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                                                        item.status === 'Disetujui' ? 'bg-green-100 text-green-700' : 
+                                                        item.status === 'Ditolak' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                                                    }`}>{item.status}</span>
+                                                </div>
+                                                <p className="text-xs text-gray-500 flex items-center gap-1"><Icon name="Calendar" size={12}/> {new Date(item.tanggal).toLocaleDateString('id-ID')}</p>
+                                                <p className="text-sm text-gray-600 mt-1 italic">"{item.alasan}"</p>
+                                            </div>
+                                            {item.note && <div className="text-xs text-blue-500 bg-blue-50 p-2 rounded max-w-[100px] text-right">Note: {item.note}</div>}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             );
@@ -747,8 +906,11 @@
                         const parsedUser = JSON.parse(storedUser);
                         setUser(parsedUser);
                         const storedConfig = localStorage.getItem('sikobor_config');
-                        if (storedConfig) setOfficeConfig(JSON.parse(storedConfig));
-                        else setOfficeConfig(getOfficeConfigFromUser(parsedUser));
+                        if (storedConfig) {
+                            setOfficeConfig(JSON.parse(storedConfig));
+                        } else {
+                            setOfficeConfig(getOfficeConfigFromUser(parsedUser));
+                        }
                         fetchTodayStatus(parsedUser.nip);
                         setCurrentView('dashboard');
                     } catch (e) {
@@ -762,12 +924,24 @@
                     const response = await fetch(`${SCRIPT_URL}?action=getHistory&nip=${encodeURIComponent(nip)}&t=${new Date().getTime()}`, { method: "GET", credentials: "omit", redirect: "follow", headers: { "Content-Type": "text/plain" } });
                     const data = await response.json();
                     if (Array.isArray(data)) {
-                        const today = new Date();
+                        const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+                        const d = new Date();
+                        const day = String(d.getDate()).padStart(2, '0'); 
+                        const month = months[d.getMonth()];
+                        const year = d.getFullYear();
+                        const todayStrIndo = `${day} ${month} ${year}`;
+                        
                         const todayEntries = data.filter(item => {
+                            if (item.date === todayStrIndo) return true;
                             const itemDate = parseDateString(item.date);
-                            if (!itemDate) return false;
-                            return itemDate.getDate() === today.getDate() && itemDate.getMonth() === today.getMonth() && itemDate.getFullYear() === today.getFullYear();
+                            if (itemDate && !isNaN(itemDate.getTime())) {
+                                return itemDate.getDate() === d.getDate() && 
+                                       itemDate.getMonth() === d.getMonth() && 
+                                       itemDate.getFullYear() === d.getFullYear();
+                            }
+                            return false;
                         });
+                        
                         let newStatus = { in: '-', out: '-' };
                         const inEntry = todayEntries.find(item => item.type === 'in'); if(inEntry) newStatus.in = inEntry.time;
                         const outEntry = todayEntries.find(item => item.type === 'out'); if(outEntry) newStatus.out = outEntry.time;
@@ -841,7 +1015,8 @@
                         {user && currentView === 'recap' && <RecapScreen navigate={setCurrentView} userNip={user.nip} />}
                         {user && currentView === 'profile' && <ProfileScreen user={user} navigate={setCurrentView} openDetail={openProfileDetail} />}
                         {user && currentView === 'profile-detail' && <ProfileDetailScreen user={user} navigate={setCurrentView} type={detailParams.type} title={detailParams.title} />}
-                        {user && currentView === 'adjustment' && <AdjustmentScreen navigate={setCurrentView} />}
+                        {/* FIX: Pass user prop to AdjustmentScreen */}
+                        {user && currentView === 'adjustment' && <AdjustmentScreen navigate={setCurrentView} user={user} />}
                         {user && currentView === 'ekinerja' && <EKinerjaScreen navigate={setCurrentView} />}
                     </div>
                 </div>

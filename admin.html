@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel - SIKOBOR</title>
-    <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjmCDN_83Ji85cv_bpY1JhsS-6W32g5aa4QvCa7Vf4qIpXfLkYrYH2wg2aQiWmQicRIZkQ5kRlIhaAJW6tVrvoQAdlkamnv-SRoyt2Q6rHfHkeKUtog4SRVFuGLgi04qQIZYIsMyYbSa4uA9ADW5PN_cgH_tVRmeFcO9aaGWBixnV_uJnepyeJ4yifEyQ2m/s320/%E2%80%94Pngtree%E2%80%94fingerprint%20ai%20security%20biometric%20icon_20555184.png">
+    <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEj2CAxSxj60InPS2ZxBrUDzPw8TCnmFiMiAOhIS9Am1BNqz3Lytq-iMkYUdmtXTDxH4YKj10_51sEUIr9DoNdYDRbtXCLWtJZ0c03_2RcO7MmB9F2hnY2SW94In0hu17KeWoyWqlsnGYnm9exBBT37sMktvzHDRBNh5KC6PVQb89v_Anrkex4Zckm4QX7B2/s320/placeholder_4129855.png">
     
     <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -99,6 +99,53 @@
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- PAGINATION COMPONENT ---
+        const Pagination = ({ itemsPerPage, totalItems, paginate, currentPage, onLimitChange }) => {
+            const pageNumbers = [];
+            for (let i = 1; i <= Math.ceil(totalItems / itemsPerPage); i++) {
+                pageNumbers.push(i);
+            }
+            const totalPages = pageNumbers.length;
+
+            return (
+                <div className="p-4 border-t border-slate-700 flex flex-col sm:flex-row justify-between items-center bg-slate-900/50 text-sm text-slate-400 gap-4">
+                    <div className="flex items-center gap-2">
+                        <span>Tampilkan:</span>
+                        <select 
+                            value={itemsPerPage === totalItems ? 'all' : itemsPerPage} 
+                            onChange={(e) => onLimitChange(e.target.value)} 
+                            className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-white focus:outline-none"
+                        >
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="all">Semua</option>
+                        </select>
+                        <span>data per halaman</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                         <span className="mr-2">Hal {currentPage} dari {totalPages || 1}</span>
+                         <button 
+                            onClick={() => paginate(Math.max(1, currentPage - 1))} 
+                            disabled={currentPage === 1}
+                            className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                         >
+                            <Icon name="ChevronLeft" size={16}/>
+                         </button>
+                         <button 
+                            onClick={() => paginate(Math.min(totalPages, currentPage + 1))} 
+                            disabled={currentPage === totalPages || totalPages === 0}
+                            className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                         >
+                             <Icon name="ChevronRight" size={16}/>
+                         </button>
                     </div>
                 </div>
             );
@@ -221,7 +268,7 @@
                             </div>
                         </div>
                         <h1 className="text-3xl font-bold text-center mb-2 text-white">Admin SIKOBOR</h1>
-                        <p className="text-slate-400 text-center mb-8 text-sm">Sistem Kehadiran Kota Bogor</p>
+                        <p className="text-slate-400 text-center mb-8 text-sm">Sistem Kehadiran Pegawai</p>
                         <form onSubmit={handleSubmit} className="space-y-5">
                             <input className="w-full p-3 input-dark rounded-xl" placeholder="Username" value={user} onChange={e=>setUser(e.target.value)} />
                             <input className="w-full p-3 input-dark rounded-xl" type="password" placeholder="Password" value={pass} onChange={e=>setPass(e.target.value)} />
@@ -323,6 +370,8 @@
                 } catch(e) { showToast("Gagal menyimpan", 'error'); }
                 setSaving(false);
             };
+
+            const formatLabel = (key) => key.replace(/_/g, ' ').toUpperCase();
 
             const renderContent = () => {
                 if (loading) return <div className="text-center py-20 text-slate-500"><Icon name="Loader" className="animate-spin mb-2 inline"/> Memuat data...</div>;
@@ -433,6 +482,10 @@
             const [toast, setToast] = useState(null);
             const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
+            // Pagination States
+            const [currentPage, setCurrentPage] = useState(1);
+            const [itemsPerPage, setItemsPerPage] = useState(10); // Default 10 items
+
             const showToast = (message, type) => { setToast({ message, type }); setTimeout(() => setToast(null), 3000); };
 
             useEffect(() => {
@@ -456,31 +509,70 @@
 
             const handleSaveUser = async (e) => {
                 e.preventDefault(); setLoading(true);
-                await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "saveUser", userData: formData }) });
+                
+                let payload = { ...formData };
+                const fileInput = document.getElementById('photoInput');
+                if (fileInput && fileInput.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = async function() {
+                        payload.newPhotoBase64 = reader.result;
+                        await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "saveUser", userData: payload }) });
+                        showToast("Data Pegawai & Foto Tersimpan", 'success'); 
+                        setShowUserModal(false); 
+                        fetchUsers();
+                    };
+                    reader.readAsDataURL(fileInput.files[0]);
+                    return;
+                }
+
+                await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "saveUser", userData: payload }) });
                 showToast("Data Pegawai Tersimpan", 'success'); setShowUserModal(false); fetchUsers();
             };
             
             const handlePermission = async (p, status) => {
                 const note = prompt("Catatan (Opsional):"); if(note===null) return;
                 setLoading(true);
-                await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "respondPermission", id: p.timestamp, nip: p.nip, status, note }) });
-                showToast(`Izin ${status}`, 'success'); fetchPermissions();
+                const res = await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "respondPermission", id: p.timestamp, nip: p.nip, status, note }) });
+                const result = await res.json();
+                if(result.success) showToast(`Izin ${status}`, 'success'); 
+                else showToast(result.message, 'error');
+                fetchPermissions();
+                setLoading(false);
             };
 
-            const openUserModal = (u) => { setEditingUser(u); setFormData(u || { nip: "", password: "", name: "", unit: "", role: "", office_lat: "", office_lng: "", max_radius: "" }); setShowUserModal(true); };
+            const handleDeleteUser = async (nip) => {
+                if(!confirm("Yakin hapus?")) return;
+                setLoading(true);
+                await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "deleteUser", nip }) });
+                showToast("Dihapus", 'success');
+                fetchUsers();
+            };
 
-            // MAP PICKER STATE
+            const openUserModal = (u) => { setEditingUser(u); setFormData(u || { nip: "", password: "", name: "", unit: "", role: "", office_lat: "", office_lng: "", max_radius: "", photoUrl: "" }); setShowUserModal(true); };
+
             const [mapLat, setMapLat] = useState(-6.595038);
             const [mapLng, setMapLng] = useState(106.797432);
-            
+
+            // PAGINATION HELPERS
+            const paginate = (data) => {
+                const lastIndex = currentPage * itemsPerPage;
+                const firstIndex = lastIndex - itemsPerPage;
+                return itemsPerPage === 'all' ? data : data.slice(firstIndex, lastIndex);
+            };
+
+            const handleLimitChange = (val) => {
+                setItemsPerPage(val === 'all' ? 'all' : parseInt(val));
+                setCurrentPage(1); // Reset to first page
+            };
+
             return (
                 <div className="flex min-h-screen bg-slate-950">
                     <div className="w-72 bg-slate-900 border-r border-slate-800 p-6 fixed h-full flex flex-col">
-                         <h2 className="text-2xl font-bold mb-8 flex items-center gap-2"><Icon name="ShieldCheck" className="text-indigo-500"/> Admin</h2>
+                         <h2 className="text-2xl font-bold mb-8 flex items-center gap-2"><Icon name="ShieldCheck" className="text-indigo-500"/> Sikobor Admin</h2>
                          <nav className="space-y-2 flex-1">
-                            <button onClick={() => setView('users')} className={`w-full flex gap-3 text-left p-3 rounded transition-colors ${view==='users'?'bg-indigo-600 text-white shadow-lg':'text-slate-400 hover:bg-slate-800'}`}><Icon name="Users"/> Pegawai</button>
-                            <button onClick={() => setView('attendance')} className={`w-full flex gap-3 text-left p-3 rounded transition-colors ${view==='attendance'?'bg-indigo-600 text-white shadow-lg':'text-slate-400 hover:bg-slate-800'}`}><Icon name="CalendarCheck"/> Absensi</button>
-                            <button onClick={() => setView('approvals')} className={`w-full flex gap-3 text-left p-3 rounded transition-colors ${view==='approvals'?'bg-indigo-600 text-white shadow-lg':'text-slate-400 hover:bg-slate-800'}`}><Icon name="FileCheck"/> Persetujuan</button>
+                            <button onClick={() => { setView('users'); setCurrentPage(1); }} className={`w-full flex gap-3 text-left p-3 rounded transition-colors ${view==='users'?'bg-indigo-600 text-white shadow-lg':'text-slate-400 hover:bg-slate-800'}`}><Icon name="Users"/> Pegawai</button>
+                            <button onClick={() => { setView('attendance'); setCurrentPage(1); }} className={`w-full flex gap-3 text-left p-3 rounded transition-colors ${view==='attendance'?'bg-indigo-600 text-white shadow-lg':'text-slate-400 hover:bg-slate-800'}`}><Icon name="CalendarCheck"/> Absensi</button>
+                            <button onClick={() => { setView('approvals'); setCurrentPage(1); }} className={`w-full flex gap-3 text-left p-3 rounded transition-colors ${view==='approvals'?'bg-indigo-600 text-white shadow-lg':'text-slate-400 hover:bg-slate-800'}`}><Icon name="FileCheck"/> Persetujuan</button>
                             <button onClick={() => setView('config')} className={`w-full flex gap-3 text-left p-3 rounded transition-colors ${view==='config'?'bg-indigo-600 text-white shadow-lg':'text-slate-400 hover:bg-slate-800'}`}><Icon name="MapPin"/> Lokasi Pusat</button>
                         </nav>
                         <button onClick={() => setShowLogoutConfirm(true)} className="mt-auto text-red-400 hover:text-red-300 flex gap-2 p-2 w-full text-left rounded hover:bg-red-500/10"><Icon name="LogOut"/> Logout</button>
@@ -501,22 +593,27 @@
                                         </div>
                                     </div>
                                     <table className="w-full text-left text-slate-300">
-                                        <thead className="bg-slate-800 text-xs uppercase font-bold text-slate-400"><tr><th className="p-4">NIP</th><th className="p-4">Nama</th><th className="p-4">Unit</th><th className="p-4 text-center">Aksi</th></tr></thead>
+                                        <thead className="bg-slate-800 text-xs uppercase font-bold text-slate-400"><tr><th className="p-4 w-16 text-center">No</th><th className="p-4">NIP</th><th className="p-4">Nama</th><th className="p-4">Unit</th><th className="p-4 text-center">Aksi</th></tr></thead>
                                         <tbody className="divide-y divide-slate-800">
-                                            {users.filter(u=>u.name.toLowerCase().includes(searchTerm.toLowerCase())).map(u => (
+                                            {paginate(users.filter(u=>u.name.toLowerCase().includes(searchTerm.toLowerCase()))).map((u, index) => (
                                                 <tr key={u.nip} className="hover:bg-slate-800/50">
+                                                    <td className="p-4 text-center text-slate-500">{(currentPage-1) * (itemsPerPage === 'all' ? 0 : itemsPerPage) + index + 1}</td>
                                                     <td className="p-4 font-mono text-indigo-400">{u.nip}</td>
-                                                    <td className="p-4 font-bold text-white">{u.name}</td>
+                                                    <td className="p-4 font-bold text-white flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full bg-slate-700 overflow-hidden"><img src={u.photoUrl} className="w-full h-full object-cover" onError={e=>e.target.style.display='none'}/></div>
+                                                        {u.name}
+                                                    </td>
                                                     <td className="p-4">{u.unit}</td>
                                                     <td className="p-4 flex justify-center gap-2">
                                                         <button onClick={() => setSelectedUserProfile(u)} className="bg-emerald-600/20 text-emerald-400 px-3 py-1 rounded text-xs border border-emerald-600/30 hover:bg-emerald-600 hover:text-white transition-all">Detail</button>
                                                         <button onClick={() => openUserModal(u)} className="p-1.5 text-blue-400 hover:bg-blue-500/20 rounded"><Icon name="Pencil" size={16}/></button>
-                                                        <button onClick={() => handleDeleteUser(u.nip)} className="p-1.5 text-red-600 hover:bg-red-500/20 rounded"><Icon name="Trash2" size={16}/></button>
+                                                        <button onClick={() => handleDeleteUser(u.nip)} className="p-1.5 text-red-400 hover:bg-red-500/20 rounded"><Icon name="Trash2" size={16}/></button>
                                                     </td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
+                                    <Pagination itemsPerPage={itemsPerPage} totalItems={users.length} paginate={setCurrentPage} currentPage={currentPage} onLimitChange={handleLimitChange} />
                                 </div>
                             </div>
                         )}
@@ -542,10 +639,11 @@
                             <div className="animate-fade-in glass-panel rounded-2xl overflow-hidden shadow-xl">
                                 <h2 className="text-2xl font-bold text-white p-6 border-b border-slate-700">Persetujuan Izin</h2>
                                 <table className="w-full text-left text-slate-300">
-                                    <thead className="bg-slate-800 text-xs uppercase font-bold text-slate-400"><tr><th className="p-4">Tanggal</th><th className="p-4">Pegawai</th><th className="p-4">Jenis</th><th className="p-4">Alasan</th><th className="p-4 text-center">Status</th><th className="p-4 text-center">Aksi</th></tr></thead>
+                                    <thead className="bg-slate-800 text-xs uppercase font-bold text-slate-400"><tr><th className="p-4 w-16 text-center">No</th><th className="p-4">Tanggal</th><th className="p-4">Pegawai</th><th className="p-4">Jenis</th><th className="p-4">Alasan</th><th className="p-4 text-center">Status</th><th className="p-4 text-center">Aksi</th></tr></thead>
                                     <tbody className="divide-y divide-slate-800">
-                                        {permissions.map((p, i) => (
+                                        {paginate(permissions).map((p, i) => (
                                             <tr key={i} className="hover:bg-slate-800/50">
+                                                <td className="p-4 text-center text-slate-500">{(currentPage-1) * (itemsPerPage === 'all' ? 0 : itemsPerPage) + i + 1}</td>
                                                 <td className="p-4 text-xs text-slate-500">{new Date(p.timestamp).toLocaleDateString()}</td>
                                                 <td className="p-4"><div>{p.name}</div><div className="text-xs text-slate-500">{p.nip}</div></td>
                                                 <td className="p-4"><span className="bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded text-xs">{p.jenis}</span></td>
@@ -561,6 +659,7 @@
                                         ))}
                                     </tbody>
                                 </table>
+                                <Pagination itemsPerPage={itemsPerPage} totalItems={permissions.length} paginate={setCurrentPage} currentPage={currentPage} onLimitChange={handleLimitChange} />
                             </div>
                         )}
                         
@@ -568,10 +667,11 @@
                              <div className="animate-fade-in glass-panel rounded-2xl overflow-hidden shadow-xl">
                                 <h2 className="text-2xl font-bold text-white p-6 border-b border-slate-700">Riwayat Absensi</h2>
                                 <table className="w-full text-left text-slate-300">
-                                    <thead className="bg-slate-800 text-xs uppercase font-bold text-slate-400"><tr><th className="p-4">Waktu</th><th className="p-4">Nama</th><th className="p-4">Status</th><th className="p-4">Lokasi</th></tr></thead>
+                                    <thead className="bg-slate-800 text-xs uppercase font-bold text-slate-400"><tr><th className="p-4 w-16 text-center">No</th><th className="p-4">Waktu</th><th className="p-4">Nama</th><th className="p-4">Status</th><th className="p-4">Lokasi</th></tr></thead>
                                     <tbody className="divide-y divide-slate-800">
-                                        {attendance.map((a, i) => (
+                                        {paginate(attendance).map((a, i) => (
                                             <tr key={i} className="hover:bg-slate-800/50">
+                                                <td className="p-4 text-center text-slate-500">{(currentPage-1) * (itemsPerPage === 'all' ? 0 : itemsPerPage) + i + 1}</td>
                                                 <td className="p-4"><div>{a.time}</div><div className="text-xs text-slate-500">{a.date}</div></td>
                                                 <td className="p-4"><div>{a.name}</div><div className="text-xs text-slate-500">{a.nip}</div></td>
                                                 <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${a.type==='in'?'bg-green-500/20 text-green-400':'bg-red-500/20 text-red-400'}`}>{a.type==='in'?'DATANG':'PULANG'}</span></td>
@@ -580,64 +680,52 @@
                                         ))}
                                     </tbody>
                                 </table>
+                                <Pagination itemsPerPage={itemsPerPage} totalItems={attendance.length} paginate={setCurrentPage} currentPage={currentPage} onLimitChange={handleLimitChange} />
                             </div>
                         )}
 
                         {showUserModal && (
                             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                                <div className="glass-panel p-8 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+                                <div className="glass-panel p-8 rounded-2xl w-full max-w-lg shadow-2xl overflow-y-auto max-h-[90vh]">
                                     <h3 className="text-xl font-bold text-white mb-6">Kelola Pegawai</h3>
                                     <form onSubmit={handleSaveUser} className="space-y-4">
+                                        {/* Image Upload Input */}
+                                        <div className="flex justify-center mb-4">
+                                            <div className="relative group cursor-pointer">
+                                                <div className="w-24 h-24 rounded-full bg-slate-700 overflow-hidden border-2 border-dashed border-slate-500 hover:border-indigo-500 transition-colors">
+                                                    <img id="preview" src={formData.photoUrl || "https://via.placeholder.com/150"} className="w-full h-full object-cover opacity-80 group-hover:opacity-100"/>
+                                                </div>
+                                                <input type="file" id="photoInput" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" 
+                                                    onChange={(e) => {
+                                                        const file = e.target.files[0];
+                                                        if(file) document.getElementById('preview').src = URL.createObjectURL(file);
+                                                    }} 
+                                                />
+                                                <div className="absolute bottom-0 w-full bg-black/50 text-[10px] text-center text-white py-1">Ganti Foto</div>
+                                            </div>
+                                        </div>
+
                                         <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="text-xs text-slate-400 font-bold mb-1 block">NIP (Wajib)</label>
-                                                <input required className="input-dark w-full p-3 rounded-lg" placeholder="Contoh: 1985..." value={formData.nip} onChange={e => setFormData({...formData, nip: e.target.value})} />
-                                            </div>
-                                            <div>
-                                                <label className="text-xs text-slate-400 font-bold mb-1 block">Password</label>
-                                                <input required className="input-dark w-full p-3 rounded-lg" placeholder="******" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
-                                            </div>
+                                            <input required className="input-dark w-full p-3 rounded-lg" placeholder="NIP" value={formData.nip} onChange={e => setFormData({...formData, nip: e.target.value})} />
+                                            <input required className="input-dark w-full p-3 rounded-lg" placeholder="Password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+                                        </div>
+                                        <input required className="input-dark w-full p-3 rounded-lg" placeholder="Nama Lengkap" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <input className="input-dark w-full p-3 rounded-lg" placeholder="Unit Kerja" value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})} />
+                                            <input className="input-dark w-full p-3 rounded-lg" placeholder="Jabatan" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} />
                                         </div>
                                         
-                                        <div>
-                                            <label className="text-xs text-slate-400 font-bold mb-1 block">Nama Lengkap</label>
-                                            <input required className="input-dark w-full p-3 rounded-lg" placeholder="Nama Pegawai" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                                        {/* LOCATION INPUTS ADDED BACK */}
+                                        <div className="border-t border-slate-700 pt-3 mt-2">
+                                            <p className="text-xs font-bold text-indigo-400 mb-2 flex items-center gap-1"><Icon name="MapPin" size={14}/> Lokasi Khusus (Opsional)</p>
+                                            <div className="grid grid-cols-2 gap-4 mb-2">
+                                                <input className="input-dark w-full p-2 rounded text-sm" placeholder="Latitude (-6.xxxx)" value={formData.office_lat} onChange={e => setFormData({...formData, office_lat: e.target.value})} />
+                                                <input className="input-dark w-full p-2 rounded text-sm" placeholder="Longitude (106.xxxx)" value={formData.office_lng} onChange={e => setFormData({...formData, office_lng: e.target.value})} />
+                                            </div>
+                                            <input className="input-dark w-full p-2 rounded text-sm" placeholder="Radius (Meter, cth: 50)" value={formData.max_radius} onChange={e => setFormData({...formData, max_radius: e.target.value})} />
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="text-xs text-slate-400 font-bold mb-1 block">Unit Kerja</label>
-                                                <input className="input-dark w-full p-3 rounded-lg" placeholder="Dinas..." value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})} />
-                                            </div>
-                                            <div>
-                                                <label className="text-xs text-slate-400 font-bold mb-1 block">Jabatan</label>
-                                                <input className="input-dark w-full p-3 rounded-lg" placeholder="Staff..." value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} />
-                                            </div>
-                                        </div>
-
-                                        {/* BAGIAN LOKASI KHUSUS (BARU DITAMBAHKAN) */}
-                                        <div className="border-t border-slate-700 pt-4 mt-2">
-                                            <p className="text-sm font-bold text-indigo-400 mb-2 flex items-center gap-2"><Icon name="MapPin" size={14}/> Lokasi Khusus (Opsional)</p>
-                                            <p className="text-xs text-slate-500 mb-3">Isi jika lokasi kerja pegawai ini berbeda dengan kantor pusat.</p>
-                                            
-                                            <div className="grid grid-cols-2 gap-4 mb-3">
-                                                <div>
-                                                    <label className="text-xs text-slate-400 font-bold mb-1 block">Latitude</label>
-                                                    <input className="input-dark w-full p-3 rounded-lg text-sm" placeholder="-6.xxxx" value={formData.office_lat} onChange={e => setFormData({...formData, office_lat: e.target.value})} />
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs text-slate-400 font-bold mb-1 block">Longitude</label>
-                                                    <input className="input-dark w-full p-3 rounded-lg text-sm" placeholder="106.xxxx" value={formData.office_lng} onChange={e => setFormData({...formData, office_lng: e.target.value})} />
-                                                </div>
-                                            </div>
-                                            
-                                            <div>
-                                                <label className="text-xs text-slate-400 font-bold mb-1 block">Radius Khusus (Meter)</label>
-                                                <input className="input-dark w-full p-3 rounded-lg text-sm" placeholder="Contoh: 50" value={formData.max_radius} onChange={e => setFormData({...formData, max_radius: e.target.value})} />
-                                            </div>
-                                        </div>
-
-                                        <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-700">
+                                        <div className="flex justify-end gap-3 mt-6">
                                             <button type="button" onClick={() => setShowUserModal(false)} className="px-5 py-2 text-slate-300 hover:bg-slate-800 rounded-lg">Batal</button>
                                             <button type="submit" className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-lg flex items-center gap-2">
                                                 {loading ? <Icon name="Loader" className="animate-spin" size={16}/> : <Icon name="Save" size={16}/>} Simpan
