@@ -49,7 +49,7 @@
         const { useState, useEffect, useRef } = React;
         
         // CONFIGURATION (GUNAKAN URL DEPLOY TERBARU ANDA)
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyjY1FF4JtRC16dJ5tO2Kip-w8lvTEJCPYm7fnJ1ycLjGh6lmqBJ3hvAsfcPy4XK2fPEg/exec";
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxqhzDUptwCppWiN29R3tEOvPzZ08aFNuyoNa8aU6H6jZdHjpGIhVvLBAm_c9EOkn0G/exec";
 
         // --- ICON COMPONENT ---
         const Icon = ({ name, size=20, className="" }) => {
@@ -77,6 +77,31 @@
             );
         };
 
+        // --- LOGOUT CONFIRMATION TOAST ---
+        const LogoutConfirm = ({ onConfirm, onCancel }) => {
+            return (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10001] flex items-center justify-center p-4 animate-fade-in">
+                    <div className="glass-panel p-6 rounded-2xl shadow-2xl w-full max-w-sm modal-enter border border-slate-600">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="bg-red-500/20 p-3 rounded-full mb-4">
+                                <Icon name="LogOut" size={32} className="text-red-500" />
+                            </div>
+                            <h3 className="text-xl font-bold text-white mb-2">Konfirmasi Logout</h3>
+                            <p className="text-slate-400 mb-6 text-sm">Apakah Anda yakin ingin keluar dari aplikasi admin?</p>
+                            <div className="flex gap-3 w-full">
+                                <button onClick={onCancel} className="flex-1 px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium transition-colors">
+                                    Batal
+                                </button>
+                                <button onClick={onConfirm} className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white hover:bg-red-700 font-bold shadow-lg shadow-red-900/30 transition-colors">
+                                    Ya, Logout
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         // --- APPROVAL CONFIRMATION MODAL ---
         const ApprovalConfirm = ({ status, onConfirm, onCancel }) => {
             const [note, setNote] = useState("");
@@ -98,31 +123,6 @@
                         <div className="flex gap-3 w-full">
                             <button onClick={onCancel} className="flex-1 px-4 py-2.5 rounded-xl bg-slate-700 text-slate-300 hover:bg-slate-600 font-medium transition-colors">Batal</button>
                             <button onClick={() => onConfirm(note)} className={`flex-1 px-4 py-2.5 rounded-xl text-white font-bold shadow-lg transition-colors ${status === 'Disetujui' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-red-600 hover:bg-red-500'}`}>Konfirmasi</button>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        // --- LOGOUT CONFIRMATION TOAST ---
-        const LogoutConfirm = ({ onConfirm, onCancel }) => {
-            return (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10001] flex items-center justify-center p-4 animate-fade-in">
-                    <div className="glass-panel p-6 rounded-2xl shadow-2xl w-full max-w-sm modal-enter border border-slate-600">
-                        <div className="flex flex-col items-center text-center">
-                            <div className="bg-red-500/20 p-3 rounded-full mb-4">
-                                <Icon name="LogOut" size={32} className="text-red-500" />
-                            </div>
-                            <h3 className="text-xl font-bold text-white mb-2">Konfirmasi Logout</h3>
-                            <p className="text-slate-400 mb-6 text-sm">Apakah Anda yakin ingin keluar dari aplikasi admin?</p>
-                            <div className="flex gap-3 w-full">
-                                <button onClick={onCancel} className="flex-1 px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium transition-colors">
-                                    Batal
-                                </button>
-                                <button onClick={onConfirm} className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white hover:bg-red-700 font-bold shadow-lg shadow-red-900/30 transition-colors">
-                                    Ya, Logout
-                                </button>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -274,7 +274,8 @@
                 try {
                     const res = await fetch(SCRIPT_URL, {
                         method: "POST",
-                        body: JSON.stringify({ action: "adminLogin", username: user, password: pass })
+                        body: JSON.stringify({ action: "adminLogin", username: user, password: pass }),
+                        headers: { "Content-Type": "text/plain" }
                     });
                     const data = await res.json();
                     if (data.success) onLogin(data.token);
@@ -384,7 +385,8 @@
                 try {
                     const res = await fetch(SCRIPT_URL, {
                         method: "POST",
-                        body: JSON.stringify({ action: "updateProfile", type: activeTab, nip: user.nip, data: dataList })
+                        body: JSON.stringify({ action: "updateProfile", type: activeTab, nip: user.nip, data: dataList }),
+                        headers: { "Content-Type": "text/plain" }
                     });
                     const result = await res.json();
                     if(result.success) {
@@ -529,7 +531,7 @@
             const handleSaveConfig = async (e) => {
                 e.preventDefault(); if(!confirm("Simpan config?")) return;
                 setLoading(true);
-                await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "saveConfig", config: { lat: e.target.lat.value, lng: e.target.lng.value, radius: e.target.rad.value } }) });
+                await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "saveConfig", config: { lat: e.target.lat.value, lng: e.target.lng.value, radius: e.target.rad.value } }), headers: { "Content-Type": "text/plain" } });
                 showToast("Config Tersimpan", 'success'); setLoading(false); fetchConfig();
             };
 
@@ -538,11 +540,19 @@
                 
                 let payload = { ...formData };
                 const fileInput = document.getElementById('photoInput');
+                
+                // Add Check File Size (Max 2MB)
+                if (fileInput && fileInput.files[0] && fileInput.files[0].size > 2 * 1024 * 1024) {
+                    alert("Ukuran foto terlalu besar (Maks 2MB)");
+                    setLoading(false);
+                    return;
+                }
+
                 if (fileInput && fileInput.files[0]) {
                     const reader = new FileReader();
                     reader.onload = async function() {
                         payload.newPhotoBase64 = reader.result;
-                        await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "saveUser", userData: payload }) });
+                        await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "saveUser", userData: payload }), headers: { "Content-Type": "text/plain" } });
                         showToast("Data Pegawai & Foto Tersimpan", 'success'); 
                         setShowUserModal(false); 
                         fetchUsers();
@@ -551,7 +561,7 @@
                     return;
                 }
 
-                await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "saveUser", userData: payload }) });
+                await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "saveUser", userData: payload }), headers: { "Content-Type": "text/plain" } });
                 showToast("Data Pegawai Tersimpan", 'success'); setShowUserModal(false); fetchUsers();
             };
             
@@ -562,7 +572,8 @@
                 try {
                     const res = await fetch(SCRIPT_URL, { 
                         method: "POST", 
-                        body: JSON.stringify({ action: "respondPermission", id: p.timestamp, nip: p.nip, status, note }) 
+                        body: JSON.stringify({ action: "respondPermission", id: p.timestamp, nip: p.nip, status, note }),
+                        headers: { "Content-Type": "text/plain" }
                     });
                     const result = await res.json();
                     if(result.success) { showToast(`Izin ${status}`, 'success'); fetchPermissions(); } 
@@ -574,7 +585,7 @@
             const handleDeleteUser = async (nip) => {
                 if(!confirm("Yakin hapus?")) return;
                 setLoading(true);
-                await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "deleteUser", nip }) });
+                await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify({ action: "deleteUser", nip }), headers: { "Content-Type": "text/plain" } });
                 showToast("Dihapus", 'success');
                 fetchUsers();
             };
@@ -698,7 +709,7 @@
                              <div className="animate-fade-in glass-panel rounded-2xl overflow-hidden shadow-xl">
                                 <h2 className="text-2xl font-bold text-white p-6 border-b border-slate-700">Riwayat Absensi</h2>
                                 <table className="w-full text-left text-slate-300">
-                                    <thead className="bg-slate-800 text-xs uppercase font-bold text-slate-400"><tr><th className="p-4 w-16 text-center">No</th><th className="p-4">Waktu</th><th className="p-4">Nama</th><th className="p-4">Status</th><th className="p-4">Lokasi</th></tr></thead>
+                                    <thead className="bg-slate-800 text-xs uppercase font-bold text-slate-400"><tr><th className="p-4 w-16 text-center">No</th><th className="p-4">Waktu</th><th className="p-4">Nama</th><th className="p-4">Status</th><th className="p-4 text-center">Foto</th><th className="p-4 text-center">Lokasi</th></tr></thead>
                                     <tbody className="divide-y divide-slate-800">
                                         {paginate(attendance).map((a, i) => (
                                             <tr key={i} className="hover:bg-slate-800/50">
@@ -706,7 +717,15 @@
                                                 <td className="p-4"><div>{a.time}</div><div className="text-xs text-slate-500">{a.date}</div></td>
                                                 <td className="p-4"><div>{a.name}</div><div className="text-xs text-slate-500">{a.nip}</div></td>
                                                 <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${a.type==='in'?'bg-green-500/20 text-green-400':'bg-red-500/20 text-red-400'}`}>{a.type==='in'?'DATANG':'PULANG'}</span></td>
-                                                <td className="p-4 text-xs font-mono text-blue-400"><a href={`https://maps.google.com/?q=${a.lat},${a.lng}`} target="_blank">{a.lat}, {a.lng}</a></td>
+                                                {/* ADDED: Photo Column */}
+                                                <td className="p-4 text-center">
+                                                    {a.image && a.image.includes('http') ? (
+                                                        <a href={a.image} target="_blank" className="inline-block w-10 h-10 rounded-lg overflow-hidden border border-slate-600 hover:border-indigo-500 transition-colors">
+                                                            <img src={a.image.replace('/view', '/view?export=view')} className="w-full h-full object-cover" onError={(e)=>e.target.style.display='none'} referrerPolicy="no-referrer"/>
+                                                        </a>
+                                                    ) : <span className="text-slate-600">-</span>}
+                                                </td>
+                                                <td className="p-4 text-center"><a href={`https://maps.google.com/?q=${a.lat},${a.lng}`} target="_blank" className="text-blue-400 hover:underline text-xs flex items-center justify-center gap-1"><Icon name="MapPin" size={12}/> Peta</a></td>
                                             </tr>
                                         ))}
                                     </tbody>
